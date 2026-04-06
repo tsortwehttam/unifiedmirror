@@ -1,4 +1,4 @@
-export type Platform = "gmail" | "slack" | "messages"
+export type Platform = "gmail" | "slack" | "messages" | "asana"
 
 export type UnifiedAttachment = {
   id: string | undefined
@@ -44,7 +44,19 @@ export type MessagesMetadata = {
   isFromMe: boolean
 }
 
-export type PlatformMetadata = GmailMetadata | SlackMetadata | MessagesMetadata
+export type AsanaMetadata = {
+  platform: "asana"
+  taskGid: string
+  projectGids: string[]
+  sectionGid: string | undefined
+  parentTaskGid: string | undefined
+  status: string | undefined
+  dueOn: string | undefined
+  permalink: string | undefined
+  customFields: Array<{ gid: string; name: string; displayValue: string | undefined }>
+}
+
+export type PlatformMetadata = GmailMetadata | SlackMetadata | MessagesMetadata | AsanaMetadata
 
 export type UnifiedMessage = {
   id: string

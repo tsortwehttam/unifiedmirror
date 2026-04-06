@@ -1,5 +1,6 @@
 import fs from "node:fs"
 import type { AttachmentSelector, UnifiedMessage } from "./types"
+import { fetchAsanaAttachment } from "./platforms/asana/AsanaSource"
 import { fetchGmailAttachment } from "./platforms/gmail/GmailSource"
 import { fetchSlackAttachment } from "./platforms/slack/SlackSource"
 
@@ -22,6 +23,7 @@ export async function fetchAttachment(
 ): Promise<Buffer | undefined> {
   if (msg.platform === "gmail") return fetchGmailAttachment(msg, selector, account)
   if (msg.platform === "slack") return fetchSlackAttachment(msg, selector, account)
+  if (msg.platform === "asana") return fetchAsanaAttachment(msg, selector, account)
   if (msg.platform === "messages") {
     let attachment = selector.id
       ? msg.attachments.find(value => value.id === selector.id)

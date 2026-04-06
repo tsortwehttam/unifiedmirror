@@ -1,6 +1,10 @@
 import yargs, { type Argv } from "yargs"
 import { hideBin } from "yargs/helpers"
 import { DEFAULT_ACCOUNT } from "../config/CliConfig"
+import { parseAccountsCli as parseAsanaAccountsCli } from "../platforms/asana/accounts"
+import { parseAuthCli as parseAsanaAuthCli } from "../platforms/asana/auth"
+import { sendAsanaMessage } from "../platforms/asana/AsanaSend"
+import { listAsanaMessages } from "../platforms/asana/AsanaSource"
 import { appendJsonl, resolveJsonlDest } from "../io/JsonlUtils"
 import { syncJsonl, type MergeBy, type ShardMode, type SortBy } from "../io/SyncUtils"
 import { parseAccountsCli as parseGmailAccountsCli } from "../platforms/gmail/accounts"
@@ -47,7 +51,7 @@ function toBooleanArg(value: unknown): boolean {
 
 function toPlatformArg(value: unknown): Platform {
   let platform = toStringArg(value)
-  if (platform === "gmail" || platform === "slack" || platform === "messages") return platform
+  if (platform === "gmail" || platform === "slack" || platform === "messages" || platform === "asana") return platform
   throw new Error(`Unknown platform "${platform}"`)
 }
 
@@ -55,7 +59,7 @@ function addPullOptions<T>(cli: Argv<T>): Argv<T> {
   return cli
     .option("platform", {
       type: "string",
-      choices: ["gmail", "slack", "messages"] as const,
+      choices: ["gmail", "slack", "messages", "asana"] as const,
       demandOption: true,
     })
     .option("account", {
@@ -87,6 +91,16 @@ function addPullOptions<T>(cli: Argv<T>): Argv<T> {
       default: true,
       describe: "Slack only. Include thread replies for threaded parents returned by channel history.",
     })
+    .option("include-subtasks", {
+      type: "boolean",
+      default: true,
+      describe: "Asana only. Include subtasks for each task.",
+    })
+    .option("include-comments", {
+      type: "boolean",
+      default: true,
+      describe: "Asana only. Include comments for each task.",
+    })
     .option("verbose", {
       alias: "v",
       type: "boolean",
@@ -103,6 +117,8 @@ async function pullRows(params: {
   until: string | undefined
   maxResults: number
   includeThreadReplies: boolean
+  includeSubtasks: boolean
+  includeComments: boolean
   verbose: boolean
 }): Promise<UnifiedMessage[]> {
   if (params.platform === "gmail") {
@@ -125,6 +141,19 @@ async function pullRows(params: {
       until: params.until,
       maxResults: params.maxResults,
       includeThreadReplies: params.includeThreadReplies,
+      verbose: params.verbose,
+    })
+  }
+  if (params.platform === "asana") {
+    return listAsanaMessages({
+      account: params.account,
+      query: params.query,
+      preset: params.preset,
+      since: params.since,
+      until: params.until,
+      maxResults: params.maxResults,
+      includeSubtasks: params.includeSubtasks,
+      includeComments: params.includeComments,
       verbose: params.verbose,
     })
   }
@@ -160,6 +189,8 @@ await yargs(hideBin(process.argv))
         until: toMaybeStringArg(argv.until),
         maxResults: toNumberArg(argv.maxResults),
         includeThreadReplies: toBooleanArg(argv.includeThreadReplies),
+        includeSubtasks: toBooleanArg(argv.includeSubtasks),
+        includeComments: toBooleanArg(argv.includeComments),
         verbose: toBooleanArg(argv.verbose),
       })
 
@@ -203,6 +234,8 @@ await yargs(hideBin(process.argv))
         until: toMaybeStringArg(argv.until),
         maxResults: toNumberArg(argv.maxResults),
         includeThreadReplies: toBooleanArg(argv.includeThreadReplies),
+        includeSubtasks: toBooleanArg(argv.includeSubtasks),
+        includeComments: toBooleanArg(argv.includeComments),
         verbose: toBooleanArg(argv.verbose),
       })
 
@@ -231,7 +264,7 @@ await yargs(hideBin(process.argv))
       cli
         .option("platform", {
           type: "string",
-          choices: ["gmail", "slack"] as const,
+          choices: ["gmail", "slack", "asana"] as const,
           demandOption: true,
         })
         .option("account", {
@@ -321,15 +354,25 @@ await yargs(hideBin(process.argv))
               threadId: argv.threadId,
               verbose: argv.verbose,
             })
-          : await sendSlackMessage({
-              account: argv.account,
-              channel: to[0] ?? "",
-              text: requireBody(argv.body, argv.html),
-              threadTs: argv.threadId,
-              attach,
-              asUser: argv.asUser,
-              verbose: argv.verbose,
-            })
+          : argv.platform === "asana"
+            ? await sendAsanaMessage({
+                account: argv.account,
+                assignee: to[0],
+                projectGid: argv.threadId,
+                name: argv.subject,
+                notes: requireBody(argv.body, argv.html),
+                attach,
+                verbose: argv.verbose,
+              })
+            : await sendSlackMessage({
+                account: argv.account,
+                channel: to[0] ?? "",
+                text: requireBody(argv.body, argv.html),
+                threadTs: argv.threadId,
+                attach,
+                asUser: argv.asUser,
+                verbose: argv.verbose,
+              })
       process.stdout.write(`${JSON.stringify(result)}\n`)
     },
   )
@@ -373,6 +416,29 @@ await yargs(hideBin(process.argv))
     async argv => {
       let args = (argv.args as string[] | undefined) ?? []
       await parseMessagesAccountsCli(args)
+    },
+  )
+  .command(
+    "asana <command> [args..]",
+    "Asana auth and account management",
+    cli =>
+      cli
+        .parserConfiguration({ "unknown-options-as-args": true })
+        .positional("command", {
+          type: "string",
+          choices: ["auth", "accounts"] as const,
+        })
+        .positional("args", {
+          type: "string",
+          array: true,
+        }),
+    async argv => {
+      let args = (argv.args as string[] | undefined) ?? []
+      if (argv.command === "auth") {
+        await parseAsanaAuthCli(args)
+        return
+      }
+      await parseAsanaAccountsCli(args)
     },
   )
   .command(

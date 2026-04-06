@@ -57,6 +57,16 @@ export function getSlackTokenFromEnv(): SlackTokenFile | undefined {
   }
 }
 
+export function getAsanaTokenFromEnv(): { pat: string; workspace_gid: string | undefined; workspace_name: string | undefined } | undefined {
+  let pat = env("UM_ASANA_PAT")
+  if (!pat) return undefined
+  return {
+    pat,
+    workspace_gid: env("UM_ASANA_WORKSPACE_GID"),
+    workspace_name: undefined,
+  }
+}
+
 export function getMessagesConfigFromEnv(): {
   db_path: string
   attachments_root: string | undefined
