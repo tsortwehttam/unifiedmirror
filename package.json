@@ -1,0 +1,28 @@
+{
+  "name": "um",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "um": "bin/um.js"
+  },
+  "license": "Apache-2.0",
+  "scripts": {
+    "ts": "npx tsx --",
+    "um": "npx tsx src/cli/index.ts --",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test test/*.test.ts",
+    "verify": "yarn typecheck && yarn test"
+  },
+  "dependencies": {
+    "@google-cloud/local-auth": "^3.0.1",
+    "@slack/web-api": "^7.15.0",
+    "googleapis": "^171.4.0",
+    "tsx": "^4.21.0",
+    "yargs": "^18.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.5.2",
+    "@types/yargs": "^17.0.35",
+    "typescript": "^5.9.3"
+  }
+}
