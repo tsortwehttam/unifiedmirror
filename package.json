@@ -2,6 +2,11 @@
   "name": "um",
   "version": "0.1.0",
   "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./attachments": "./src/attachments.ts",
+    "./types": "./src/types.ts"
+  },
   "bin": {
     "um": "bin/um.js"
   },
