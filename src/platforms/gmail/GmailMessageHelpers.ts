@@ -30,6 +30,7 @@ export function pickBody(part: gmail_v1.Schema$MessagePart | undefined): { text:
 export type FoundAttachment = {
   filename: string
   mimeType: string | undefined
+  sizeBytes: number | undefined
   attachmentId: string | undefined
   inlineData: string | undefined
 }
@@ -43,6 +44,7 @@ export function collectAttachments(
     out.push({
       filename: part.filename,
       mimeType: part.mimeType ?? undefined,
+      sizeBytes: part.body?.size ?? undefined,
       attachmentId: part.body?.attachmentId ?? undefined,
       inlineData: part.body?.data ?? undefined,
     })

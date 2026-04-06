@@ -87,6 +87,17 @@ yarn um pull --platform messages --account default --query '+15551234567' --sinc
 
 Output is JSONL. Pass a directory to `--dest` and it writes `messages.jsonl` inside it.
 
+Slack pulls include thread replies for messages returned by the channel history scan.
+
+## Attachments
+
+Unified rows include attachment metadata in `attachments`.
+
+- Gmail attachments can be downloaded with `fetchGmailAttachment(...)` from `src/platforms/gmail/GmailSource.ts`
+- Slack file attachments can be downloaded with `fetchSlackAttachment(...)` from `src/platforms/slack/SlackSource.ts`
+
+Slack downloads use the configured bot or user token to read private file URLs.
+
 For Messages, `--query` accepts a comma-separated list of chat identifiers, chat GUIDs, or handle IDs. Leave it empty to scan all chats.
 
 ## Send messages

@@ -47,7 +47,7 @@ export function toUnifiedMessage(msg: gmail_v1.Schema$Message): UnifiedMessage {
   let attachments: UnifiedAttachment[] = collectAttachments(msg.payload ?? undefined).map(item => ({
     filename: item.filename,
     mimeType: item.mimeType,
-    sizeBytes: item.inlineData ? Buffer.from(item.inlineData, "base64").length : undefined,
+    sizeBytes: item.inlineData ? Buffer.from(item.inlineData, "base64").length : item.sizeBytes,
     url: undefined,
   }))
   let timestamp = msg.internalDate
