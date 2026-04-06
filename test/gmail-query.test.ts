@@ -4,6 +4,7 @@ import { buildGmailQuery } from "../src/platforms/gmail/GmailSource"
 
 test("buildGmailQuery adds epoch bounds to the upstream Gmail query", () => {
   let query = buildGmailQuery({
+    preset: undefined,
     query: "in:inbox category:primary",
     since: "2026-03-17T00:00:00Z",
     until: "2026-03-22T23:59:59Z",
@@ -17,10 +18,25 @@ test("buildGmailQuery adds epoch bounds to the upstream Gmail query", () => {
 
 test("buildGmailQuery handles empty base query", () => {
   let query = buildGmailQuery({
+    preset: undefined,
     query: "",
     since: "2026-03-17T00:00:00Z",
     until: undefined,
   })
 
   assert.equal(query, "after:1773705600")
+})
+
+test("buildGmailQuery expands Gmail presets before adding bounds", () => {
+  let query = buildGmailQuery({
+    preset: "primary-like",
+    query: "label:important",
+    since: "2026-03-17T00:00:00Z",
+    until: undefined,
+  })
+
+  assert.equal(
+    query,
+    "in:anywhere -category:promotions -category:social -category:updates -category:forums -in:spam -in:trash label:important after:1773705600",
+  )
 })

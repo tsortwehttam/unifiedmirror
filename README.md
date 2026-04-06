@@ -87,16 +87,45 @@ yarn um pull --platform messages --account default --query '+15551234567' --sinc
 
 Output is JSONL. Pass a directory to `--dest` and it writes `messages.jsonl` inside it.
 
-Slack pulls include thread replies for messages returned by the channel history scan.
+Slack pulls include thread replies for messages returned by the channel history scan unless `--include-thread-replies=false` is passed.
+
+## Sync messages
+
+Use `sync` when you want deterministic merge/dedupe behavior instead of append-only output.
+
+```bash
+yarn um sync --platform gmail --account default --preset primary-like --since 2026-03-01T00:00:00Z --until 2026-04-06T23:59:59Z --dest-root ./msgs/gmail/default/by-month --shard month --merge-by id --sort-by timestamp
+yarn um sync --platform slack --account default --query '#founders,#production' --since 2026-03-01T00:00:00Z --until 2026-04-06T23:59:59Z --dest-root ./msgs/slack/default/by-month --shard month --merge-by id --sort-by timestamp --include-thread-replies
+```
+
+With `--shard month`, `um` writes:
+
+- `<dest-root>/<YYYY-MM>/messages.jsonl`
+- `<dest-root>/<YYYY-MM>/meta.json`
+
+The sync path merges by message `id`, replaces older copies on collision, and sorts by timestamp.
+
+## Gmail presets
+
+Available Gmail query presets:
+
+- `all-mail`: `in:anywhere`
+- `primary-like`: `in:anywhere -category:promotions -category:social -category:updates -category:forums -in:spam -in:trash`
+- `inbox-like`: `in:inbox -category:promotions -category:social -category:updates -category:forums -in:spam -in:trash`
+
+`--preset` can be combined with extra `--query` terms.
 
 ## Attachments
 
 Unified rows include attachment metadata in `attachments`.
 
-- Gmail attachments can be downloaded with `fetchGmailAttachment(...)` from `src/platforms/gmail/GmailSource.ts`
-- Slack file attachments can be downloaded with `fetchSlackAttachment(...)` from `src/platforms/slack/SlackSource.ts`
+- Use `fetchAttachment(...)` and `selectorFromAttachment(...)` from `src/attachments.ts` for a stable cross-platform download API.
+- Gmail attachments are fetched via `src/platforms/gmail/GmailSource.ts`.
+- Slack file attachments are fetched via `src/platforms/slack/SlackSource.ts`.
 
 Slack downloads use the configured bot or user token to read private file URLs.
+
+Selectors can target an attachment by platform attachment id, or by filename plus ordinal index when duplicate filenames exist.
 
 For Messages, `--query` accepts a comma-separated list of chat identifiers, chat GUIDs, or handle IDs. Leave it empty to scan all chats.
 

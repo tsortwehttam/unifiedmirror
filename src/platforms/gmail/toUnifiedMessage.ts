@@ -45,6 +45,7 @@ export function toUnifiedMessage(msg: gmail_v1.Schema$Message): UnifiedMessage {
   let headers = headerMap(msg)
   let body = pickBody(msg.payload ?? undefined)
   let attachments: UnifiedAttachment[] = collectAttachments(msg.payload ?? undefined).map(item => ({
+    id: item.attachmentId,
     filename: item.filename,
     mimeType: item.mimeType,
     sizeBytes: item.inlineData ? Buffer.from(item.inlineData, "base64").length : item.sizeBytes,

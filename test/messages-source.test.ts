@@ -91,6 +91,7 @@ test("listMessagesMessages reads macOS Messages rows into unified messages", asy
       let rows = await listMessagesMessages({
         account: "default",
         query: "+15551234567",
+        preset: undefined,
         since: "2026-04-05T11:59:00Z",
         until: "2026-04-05T12:06:00Z",
         maxResults: 10,

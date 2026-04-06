@@ -8,6 +8,7 @@ import { toUnifiedMessage, type MessagesDateUnit, type MessagesRow } from "./toU
 
 type MessageAttachmentRow = {
   messageId: number
+  attachmentId: number
   filename: string | null
   mimeType: string | null
   sizeBytes: number | null
@@ -133,6 +134,7 @@ function listAttachments(db: Database.Database, ids: number[], attachmentsRoot: 
   let sql = `
     SELECT
       maj.message_id AS messageId,
+      a.ROWID AS attachmentId,
       a.filename AS filename,
       a.mime_type AS mimeType,
       a.total_bytes AS sizeBytes
@@ -146,6 +148,7 @@ function listAttachments(db: Database.Database, ids: number[], attachmentsRoot: 
     if (!row.filename) continue
     let list = out.get(row.messageId) ?? []
     list.push({
+      id: String(row.attachmentId),
       filename: path.basename(row.filename),
       mimeType: row.mimeType ?? undefined,
       sizeBytes: row.sizeBytes ?? undefined,
@@ -173,6 +176,7 @@ export function buildMessagesQuery(params: {
 export async function listMessagesMessages(params: {
   account: string
   query: string
+  preset: string | undefined
   since: string | undefined
   until: string | undefined
   maxResults: number

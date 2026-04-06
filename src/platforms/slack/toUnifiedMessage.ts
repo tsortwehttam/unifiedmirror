@@ -59,6 +59,7 @@ export function toUnifiedMessage(
   }
 
   let attachments: UnifiedAttachment[] = (msg.files ?? []).map(file => ({
+    id: file.id,
     filename: file.name || file.title || file.id,
     mimeType: file.mimetype,
     sizeBytes: file.size,

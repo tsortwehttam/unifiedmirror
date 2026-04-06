@@ -1,7 +1,8 @@
-import type { UnifiedMessage } from "../../types"
+import type { AttachmentSelector, UnifiedMessage } from "../../types"
 import { verboseLog } from "../../Verbose"
 import { collectAttachments } from "./GmailMessageHelpers"
 import { gmailClient } from "./GmailClient"
+import { resolveGmailQuery } from "./GmailQueryPresets"
 import { toUnifiedMessage } from "./toUnifiedMessage"
 
 function parseTime(value: string | undefined): number | undefined {
@@ -12,11 +13,16 @@ function parseTime(value: string | undefined): number | undefined {
 }
 
 export function buildGmailQuery(params: {
+  preset: string | undefined
   query: string
   since: string | undefined
   until: string | undefined
 }): string {
-  let terms = params.query.trim() ? [params.query.trim()] : []
+  let base = resolveGmailQuery({
+    preset: params.preset,
+    query: params.query,
+  })
+  let terms = base ? [base] : []
   let since = parseTime(params.since)
   let until = parseTime(params.until)
   if (since != null) {
@@ -31,6 +37,7 @@ export function buildGmailQuery(params: {
 export async function listGmailMessages(params: {
   account: string
   query: string
+  preset: string | undefined
   since: string | undefined
   until: string | undefined
   maxResults: number
@@ -40,6 +47,7 @@ export async function listGmailMessages(params: {
   let since = parseTime(params.since)
   let until = parseTime(params.until)
   let query = buildGmailQuery({
+    preset: params.preset,
     query: params.query,
     since: params.since,
     until: params.until,
@@ -82,9 +90,18 @@ export async function listGmailMessages(params: {
   return out
 }
 
+function selectAttachment(
+  selector: AttachmentSelector,
+  attachments: ReturnType<typeof collectAttachments>,
+): ReturnType<typeof collectAttachments>[number] | undefined {
+  if (selector.id) return attachments.find(value => value.attachmentId === selector.id)
+  let matches = selector.filename ? attachments.filter(value => value.filename === selector.filename) : attachments
+  return matches[selector.index]
+}
+
 export async function fetchGmailAttachment(
   msg: UnifiedMessage,
-  filename: string,
+  selector: AttachmentSelector,
   account: string,
 ): Promise<Buffer | undefined> {
   if (msg.platformMetadata.platform !== "gmail") return undefined
@@ -95,7 +112,7 @@ export async function fetchGmailAttachment(
     format: "full",
   })
   let attachments = collectAttachments(fetched.data.payload ?? undefined)
-  let attachment = attachments.find(value => value.filename === filename)
+  let attachment = selectAttachment(selector, attachments)
   if (!attachment) return undefined
   let raw = attachment.inlineData
   if (!raw && attachment.attachmentId) {

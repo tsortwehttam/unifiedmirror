@@ -1,6 +1,7 @@
 export type Platform = "gmail" | "slack" | "messages"
 
 export type UnifiedAttachment = {
+  id: string | undefined
   filename: string
   mimeType: string | undefined
   sizeBytes: number | undefined
@@ -64,8 +65,15 @@ export type UnifiedMessage = {
 export type PullParams = {
   account: string
   query: string
+  preset: string | undefined
   since: string | undefined
   until: string | undefined
   maxResults: number
   verbose: boolean
+}
+
+export type AttachmentSelector = {
+  id: string | undefined
+  filename: string | undefined
+  index: number
 }

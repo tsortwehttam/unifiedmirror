@@ -1,5 +1,5 @@
 import type { WebClient } from "@slack/web-api"
-import type { UnifiedMessage } from "../../types"
+import type { AttachmentSelector, UnifiedMessage } from "../../types"
 import { verboseLog } from "../../Verbose"
 import { slackClients, slackReadClient } from "./slackClient"
 import { toUnifiedMessage, type SlackMessage, type UserCache } from "./toUnifiedMessage"
@@ -131,9 +131,11 @@ async function listThreadReplies(params: {
 export async function listSlackMessages(params: {
   account: string
   query: string
+  preset: string | undefined
   since: string | undefined
   until: string | undefined
   maxResults: number
+  includeThreadReplies: boolean
   verbose: boolean
 }): Promise<UnifiedMessage[]> {
   let clients = slackClients(params.account, params.verbose)
@@ -182,7 +184,7 @@ export async function listSlackMessages(params: {
           }),
         )
 
-        if (out.length >= params.maxResults || !shouldFetchReplies(normalized)) continue
+        if (out.length >= params.maxResults || !params.includeThreadReplies || !shouldFetchReplies(normalized)) continue
         let replies = await listThreadReplies({
           client: reader,
           channelId: channel.id,
@@ -218,11 +220,13 @@ export async function listSlackMessages(params: {
 
 export async function fetchSlackAttachment(
   msg: UnifiedMessage,
-  filename: string,
+  selector: AttachmentSelector,
   account: string,
 ): Promise<Buffer | undefined> {
   if (msg.platformMetadata.platform !== "slack") return undefined
-  let attachment = msg.attachments.find(value => value.filename === filename)
+  let attachment = selector.id
+    ? msg.attachments.find(value => value.id === selector.id)
+    : msg.attachments.filter(value => !selector.filename || value.filename === selector.filename)[selector.index]
   if (!attachment?.url) return undefined
   let clients = slackClients(account)
   let token = clients.tokenFile.user_token ?? clients.tokenFile.bot_token
@@ -232,7 +236,9 @@ export async function fetchSlackAttachment(
     },
   })
   if (!res.ok) {
-    throw new Error(`Failed to fetch Slack attachment "${filename}": ${res.status} ${res.statusText}`)
+    throw new Error(
+      `Failed to fetch Slack attachment "${attachment.filename}": ${res.status} ${res.statusText}`,
+    )
   }
   return Buffer.from(await res.arrayBuffer())
 }
