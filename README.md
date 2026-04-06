@@ -12,24 +12,47 @@ yarn install
 
 ## Setup
 
+Credentials can come from config files or env vars. Env vars take priority.
+
 ### Gmail
 
 ```bash
-# Place your Google OAuth credentials file at:
-#   .um/gmail/credentials.json
-# Then authenticate:
+# Option A: config files
+#   Place your Google OAuth credentials at .um/gmail/credentials.json, then:
 yarn um gmail auth --account personal
+
+# Option B: env vars (for pull/send — auth flow still needs the file)
+export UM_GMAIL_CLIENT_ID=...
+export UM_GMAIL_CLIENT_SECRET=...
+export UM_GMAIL_ACCESS_TOKEN=...
+export UM_GMAIL_REFRESH_TOKEN=...
 ```
 
 ### Slack
 
 ```bash
-# Token-based:
+# Option A: config files
 yarn um slack auth --account work --token xoxb-...
 
-# Or OAuth (requires .um/slack/credentials.json with client_id and client_secret):
-yarn um slack auth --account work --mode oauth
+# Option B: env vars
+export UM_SLACK_BOT_TOKEN=xoxb-...
+export UM_SLACK_USER_TOKEN=xoxp-...  # optional
 ```
+
+### All env vars
+
+| Var | Purpose |
+|-----|---------|
+| `UM_CONFIG_DIR` | Override config directory |
+| `UM_GMAIL_CLIENT_ID` | Gmail OAuth client ID |
+| `UM_GMAIL_CLIENT_SECRET` | Gmail OAuth client secret |
+| `UM_GMAIL_REDIRECT_URI` | Gmail OAuth redirect URI (optional) |
+| `UM_GMAIL_ACCESS_TOKEN` | Gmail OAuth access token |
+| `UM_GMAIL_REFRESH_TOKEN` | Gmail OAuth refresh token |
+| `UM_SLACK_CLIENT_ID` | Slack app client ID |
+| `UM_SLACK_CLIENT_SECRET` | Slack app client secret |
+| `UM_SLACK_BOT_TOKEN` | Slack bot token |
+| `UM_SLACK_USER_TOKEN` | Slack user token (optional) |
 
 ## Pull messages
 

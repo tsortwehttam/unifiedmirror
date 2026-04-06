@@ -12,6 +12,7 @@ import {
   resolveTokenWriteDir,
   resolveTokenWritePathForAccount,
 } from "../../config/CliConfig"
+import { getSlackCredentialsFromEnv } from "../../config/envCredentials"
 import { verboseLog } from "../../Verbose"
 import type { SlackTokenFile } from "./slackClient"
 
@@ -75,11 +76,18 @@ async function authBot(account: string, token: string, verbose = false): Promise
 }
 
 async function authOAuth(account: string, verbose = false, externalRl?: readline.Interface): Promise<void> {
-  let credentialsPath = resolveCredentialsPath("slack")
-  let creds = JSON.parse(fs.readFileSync(credentialsPath, "utf8"))
-  let clientId = creds.client_id
-  let clientSecret = creds.client_secret
-  if (!clientId || !clientSecret) throw new Error(`${credentialsPath} must contain client_id and client_secret`)
+  let clientId: string, clientSecret: string
+  let envCreds = getSlackCredentialsFromEnv()
+  if (envCreds) {
+    clientId = envCreds.client_id
+    clientSecret = envCreds.client_secret
+  } else {
+    let credentialsPath = resolveCredentialsPath("slack")
+    let creds = JSON.parse(fs.readFileSync(credentialsPath, "utf8"))
+    clientId = creds.client_id
+    clientSecret = creds.client_secret
+    if (!clientId || !clientSecret) throw new Error(`${credentialsPath} must contain client_id and client_secret`)
+  }
 
   let state = crypto.randomBytes(16).toString("hex")
   let authUrl =

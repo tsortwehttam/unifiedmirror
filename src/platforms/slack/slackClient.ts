@@ -1,6 +1,7 @@
 import fs from "node:fs"
 import { WebClient } from "@slack/web-api"
 import { resolveTokenReadPathForAccount } from "../../config/CliConfig"
+import { getSlackTokenFromEnv } from "../../config/envCredentials"
 import { verboseLog } from "../../Verbose"
 
 export type SlackTokenFile = {
@@ -19,6 +20,9 @@ export type SlackClients = {
 }
 
 export function loadSlackTokenFile(account: string): SlackTokenFile {
+  let envToken = getSlackTokenFromEnv()
+  if (envToken) return envToken
+
   let tokenPath = resolveTokenReadPathForAccount(account, "slack")
   let raw = JSON.parse(fs.readFileSync(tokenPath, "utf8"))
   if (!raw.bot_token) throw new Error(`Token file for "${account}" is missing bot_token`)

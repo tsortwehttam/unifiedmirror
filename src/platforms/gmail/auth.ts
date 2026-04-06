@@ -10,6 +10,7 @@ import {
   resolveTokenWriteDir,
   resolveTokenWritePathForAccount,
 } from "../../config/CliConfig"
+import { getGmailCredentialsFromEnv } from "../../config/envCredentials"
 import { verboseLog } from "../../Verbose"
 
 async function authForAccount(account: string | undefined, verbose = false): Promise<void> {
@@ -21,9 +22,18 @@ async function authForAccount(account: string | undefined, verbose = false): Pro
 
   if (!account) {
     try {
-      let raw = JSON.parse(fs.readFileSync(credentialsPath, "utf8"))
-      let creds = raw.installed ?? raw.web
-      let oauth = new google.auth.OAuth2(creds.client_id, creds.client_secret)
+      let envCreds = getGmailCredentialsFromEnv()
+      let detectionId: string, detectionSecret: string
+      if (envCreds) {
+        detectionId = envCreds.client_id
+        detectionSecret = envCreds.client_secret
+      } else {
+        let raw = JSON.parse(fs.readFileSync(credentialsPath, "utf8"))
+        let creds = raw.installed ?? raw.web
+        detectionId = creds.client_id
+        detectionSecret = creds.client_secret
+      }
+      let oauth = new google.auth.OAuth2(detectionId, detectionSecret)
       oauth.setCredentials(auth.credentials)
       let gmail = google.gmail({ version: "v1", auth: oauth })
       let profile = await gmail.users.getProfile({ userId: "me" })
