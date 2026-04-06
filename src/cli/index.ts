@@ -6,6 +6,8 @@ import { parseAccountsCli as parseGmailAccountsCli } from "../platforms/gmail/ac
 import { parseAuthCli as parseGmailAuthCli } from "../platforms/gmail/auth"
 import { sendGmailMessage } from "../platforms/gmail/GmailSend"
 import { listGmailMessages } from "../platforms/gmail/GmailSource"
+import { parseAccountsCli as parseMessagesAccountsCli } from "../platforms/messages/accounts"
+import { listMessagesMessages } from "../platforms/messages/MessagesSource"
 import { parseAccountsCli as parseSlackAccountsCli } from "../platforms/slack/accounts"
 import { parseAuthCli as parseSlackAuthCli } from "../platforms/slack/auth"
 import { sendSlackMessage } from "../platforms/slack/SlackSend"
@@ -28,12 +30,12 @@ await yargs(hideBin(process.argv))
   .scriptName("um")
   .command(
     "pull",
-    "Pull unified messages from Gmail or Slack and append them to JSONL",
+    "Pull unified messages from Gmail, Slack, or Messages and append them to JSONL",
     cli =>
       cli
         .option("platform", {
           type: "string",
-          choices: ["gmail", "slack"] as const,
+          choices: ["gmail", "slack", "messages"] as const,
           demandOption: true,
         })
         .option("account", {
@@ -47,7 +49,7 @@ await yargs(hideBin(process.argv))
         .option("query", {
           type: "string",
           default: "",
-          describe: "Platform-specific filter. For Slack, comma-separated channel names or IDs.",
+          describe: "Platform-specific filter. For Slack, comma-separated channel names or IDs. For Messages, comma-separated chat identifiers, chat GUIDs, or handles.",
         })
         .option("since", {
           type: "string",
@@ -75,14 +77,23 @@ await yargs(hideBin(process.argv))
               maxResults: argv.maxResults,
               verbose: argv.verbose,
             })
-          : await listSlackMessages({
-              account: argv.account,
-              query: argv.query,
-              since: argv.since,
-              until: argv.until,
-              maxResults: argv.maxResults,
-              verbose: argv.verbose,
-            })
+          : argv.platform === "slack"
+            ? await listSlackMessages({
+                account: argv.account,
+                query: argv.query,
+                since: argv.since,
+                until: argv.until,
+                maxResults: argv.maxResults,
+                verbose: argv.verbose,
+              })
+            : await listMessagesMessages({
+                account: argv.account,
+                query: argv.query,
+                since: argv.since,
+                until: argv.until,
+                maxResults: argv.maxResults,
+                verbose: argv.verbose,
+              })
 
       let dest = resolveJsonlDest(argv.dest)
       appendJsonl(dest, rows)
@@ -219,6 +230,25 @@ await yargs(hideBin(process.argv))
         return
       }
       await parseGmailAccountsCli(args)
+    },
+  )
+  .command(
+    "messages <command> [args..]",
+    "Messages account management",
+    cli =>
+      cli
+        .parserConfiguration({ "unknown-options-as-args": true })
+        .positional("command", {
+          type: "string",
+          choices: ["accounts"] as const,
+        })
+        .positional("args", {
+          type: "string",
+          array: true,
+        }),
+    async argv => {
+      let args = (argv.args as string[] | undefined) ?? []
+      await parseMessagesAccountsCli(args)
     },
   )
   .command(

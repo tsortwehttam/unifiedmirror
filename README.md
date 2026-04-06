@@ -1,6 +1,6 @@
 # um
 
-CLI for pulling and sending messages across Gmail and Slack through one unified interface.
+CLI for pulling and sending messages across Gmail, Slack, and macOS Messages through one unified interface.
 
 ## Install
 
@@ -39,6 +39,26 @@ export UM_SLACK_BOT_TOKEN=xoxb-...
 export UM_SLACK_USER_TOKEN=xoxp-...  # optional
 ```
 
+### Messages (macOS)
+
+Read-only pull support reads the local Messages SQLite database on macOS.
+
+```bash
+# Option A: use the default local database
+#   Default account reads ~/Library/Messages/chat.db automatically.
+
+# Option B: env vars
+export UM_MESSAGES_DB_PATH=~/Library/Messages/chat.db
+export UM_MESSAGES_ATTACHMENTS_ROOT=~/Library/Messages/Attachments  # optional
+export UM_MESSAGES_ME='me@example.com'  # optional label for outgoing messages
+
+# Option C: account file
+#   Put JSON at .um/messages/tokens/personal.json:
+#   {"db_path":"~/Library/Messages/chat.db","attachments_root":"~/Library/Messages/Attachments","me":"me@example.com"}
+```
+
+The terminal app running `um` needs Full Disk Access to read `~/Library/Messages/chat.db`.
+
 ### All env vars
 
 | Var | Purpose |
@@ -53,15 +73,21 @@ export UM_SLACK_USER_TOKEN=xoxp-...  # optional
 | `UM_SLACK_CLIENT_SECRET` | Slack app client secret |
 | `UM_SLACK_BOT_TOKEN` | Slack bot token |
 | `UM_SLACK_USER_TOKEN` | Slack user token (optional) |
+| `UM_MESSAGES_DB_PATH` | Override macOS Messages `chat.db` path |
+| `UM_MESSAGES_ATTACHMENTS_ROOT` | Override macOS Messages attachments root |
+| `UM_MESSAGES_ME` | Label/address to use for outgoing local Messages rows |
 
 ## Pull messages
 
 ```bash
 yarn um pull --platform gmail --account personal --query 'in:inbox' --since 2026-03-01T00:00:00Z --dest ./out
 yarn um pull --platform slack --account work --query '#general,#alerts' --since 2026-03-24T00:00:00Z --dest ./out
+yarn um pull --platform messages --account default --query '+15551234567' --since 2026-03-24T00:00:00Z --dest ./out
 ```
 
 Output is JSONL. Pass a directory to `--dest` and it writes `messages.jsonl` inside it.
+
+For Messages, `--query` accepts a comma-separated list of chat identifiers, chat GUIDs, or handle IDs. Leave it empty to scan all chats.
 
 ## Send messages
 

@@ -1,4 +1,4 @@
-export type Platform = "gmail" | "slack"
+export type Platform = "gmail" | "slack" | "messages"
 
 export type UnifiedAttachment = {
   filename: string
@@ -31,7 +31,19 @@ export type SlackMetadata = {
   permalink: string | undefined
 }
 
-export type PlatformMetadata = GmailMetadata | SlackMetadata
+export type MessagesMetadata = {
+  platform: "messages"
+  messageRowId: number
+  messageGuid: string
+  chatRowId: number | undefined
+  chatGuid: string | undefined
+  chatIdentifier: string | undefined
+  service: string | undefined
+  handle: string | undefined
+  isFromMe: boolean
+}
+
+export type PlatformMetadata = GmailMetadata | SlackMetadata | MessagesMetadata
 
 export type UnifiedMessage = {
   id: string

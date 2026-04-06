@@ -3,6 +3,7 @@ import test from "node:test"
 import {
   getGmailCredentialsFromEnv,
   getGmailTokenFromEnv,
+  getMessagesConfigFromEnv,
   getSlackCredentialsFromEnv,
   getSlackTokenFromEnv,
 } from "../src/config/envCredentials"
@@ -114,4 +115,29 @@ test("getSlackTokenFromEnv works with bot token only", () => {
     assert.equal(result!.bot_token, "xoxb-123")
     assert.equal(result!.user_token, undefined)
   })
+})
+
+// Messages config
+
+test("getMessagesConfigFromEnv returns undefined when no vars set", () => {
+  withEnv({ UM_MESSAGES_DB_PATH: undefined, UM_MESSAGES_ATTACHMENTS_ROOT: undefined, UM_MESSAGES_ME: undefined }, () => {
+    assert.equal(getMessagesConfigFromEnv(), undefined)
+  })
+})
+
+test("getMessagesConfigFromEnv returns config when db path set", () => {
+  withEnv(
+    {
+      UM_MESSAGES_DB_PATH: "~/Library/Messages/chat.db",
+      UM_MESSAGES_ATTACHMENTS_ROOT: "/tmp/messages-attachments",
+      UM_MESSAGES_ME: "me@example.com",
+    },
+    () => {
+      assert.deepEqual(getMessagesConfigFromEnv(), {
+        db_path: "~/Library/Messages/chat.db",
+        attachments_root: "/tmp/messages-attachments",
+        me: "me@example.com",
+      })
+    },
+  )
 })

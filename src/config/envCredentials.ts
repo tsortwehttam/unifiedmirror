@@ -56,3 +56,17 @@ export function getSlackTokenFromEnv(): SlackTokenFile | undefined {
     team_name: undefined,
   }
 }
+
+export function getMessagesConfigFromEnv(): {
+  db_path: string
+  attachments_root: string | undefined
+  me: string | undefined
+} | undefined {
+  let dbPath = env("UM_MESSAGES_DB_PATH")
+  if (!dbPath) return undefined
+  return {
+    db_path: dbPath,
+    attachments_root: env("UM_MESSAGES_ATTACHMENTS_ROOT"),
+    me: env("UM_MESSAGES_ME"),
+  }
+}
