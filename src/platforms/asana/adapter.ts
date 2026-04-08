@@ -17,6 +17,7 @@ export const asanaAdapter: PlatformAdapter = {
       includeSubtasks: params.options.includeSubtasks !== false,
       includeComments: params.options.includeComments !== false,
       verbose: params.verbose,
+      onBatch: params.onBatch,
     })
   },
   fetchAttachment: fetchAsanaAttachment,

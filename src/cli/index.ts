@@ -103,9 +103,24 @@ async function pullRows(params: {
   maxResults: number
   verbose: boolean
   options: Record<string, boolean | number | string | undefined>
+  onBatch: ((rows: UnifiedRecord[]) => Promise<void>) | undefined
 }): Promise<UnifiedRecord[]> {
   let adapter = getPlatformAdapter(params.platform)
   return adapter.listRecords(params)
+}
+
+type SyncWrite = {
+  shardKey: string
+  dest: string
+  rowCount: number
+  manifestPath: string
+}
+
+function mergeSyncWrites(
+  out: Map<string, SyncWrite>,
+  writes: SyncWrite[],
+): void {
+  for (let write of writes) out.set(write.dest, write)
 }
 
 let cli = yargs(hideBin(process.argv)).scriptName("unifiedmirror")
@@ -130,6 +145,7 @@ cli = cli.command(
       maxResults: toNumberArg(argv.maxResults),
       verbose: toBooleanArg(argv.verbose),
       options: toAdapterOptions(platform, argv as Record<string, unknown>),
+      onBatch: undefined,
     })
 
     let dest = resolveJsonlDest(toMaybeStringArg(argv.dest))
@@ -166,35 +182,74 @@ cli = cli.command(
   async argv => {
     let platform = toPlatformArg(argv.platform)
     let options = toAdapterOptions(platform, argv as Record<string, unknown>)
+    let destRoot = toStringArg(argv.destRoot)
+    let account = toStringArg(argv.account)
+    let query = toStringArg(argv.query)
+    let preset = toMaybeStringArg(argv.preset)
+    let since = toMaybeStringArg(argv.since)
+    let until = toMaybeStringArg(argv.until)
+    let shard = toStringArg(argv.shard) as ShardMode
+    let mergeBy = toStringArg(argv.mergeBy) as MergeBy
+    let sortBy = toStringArg(argv.sortBy) as SortBy
+    let kinds = getPlatformAdapter(platform).kinds
+    let streamed = 0
+    let writesByDest = new Map<string, SyncWrite>()
     let rows = await pullRows({
       platform,
-      account: toStringArg(argv.account),
-      query: toStringArg(argv.query),
-      preset: toMaybeStringArg(argv.preset),
-      since: toMaybeStringArg(argv.since),
-      until: toMaybeStringArg(argv.until),
+      account,
+      query,
+      preset,
+      since,
+      until,
       maxResults: toNumberArg(argv.maxResults),
       verbose: toBooleanArg(argv.verbose),
       options,
+      onBatch: async batch => {
+        if (!batch.length) return
+        streamed += batch.length
+        mergeSyncWrites(
+          writesByDest,
+          syncJsonl({
+            rows: batch,
+            destRoot,
+            platform,
+            account,
+            kinds,
+            query,
+            preset,
+            since,
+            until,
+            shard,
+            mergeBy,
+            sortBy,
+            options,
+          }),
+        )
+      },
     })
 
-    let writes = syncJsonl({
-      rows,
-      destRoot: toStringArg(argv.destRoot),
-      platform,
-      account: toStringArg(argv.account),
-      kinds: getPlatformAdapter(platform).kinds,
-      query: toStringArg(argv.query),
-      preset: toMaybeStringArg(argv.preset),
-      since: toMaybeStringArg(argv.since),
-      until: toMaybeStringArg(argv.until),
-      shard: toStringArg(argv.shard) as ShardMode,
-      mergeBy: toStringArg(argv.mergeBy) as MergeBy,
-      sortBy: toStringArg(argv.sortBy) as SortBy,
-      options,
-    })
+    if (streamed !== rows.length) {
+      mergeSyncWrites(
+        writesByDest,
+        syncJsonl({
+          rows,
+          destRoot,
+          platform,
+          account,
+          kinds,
+          query,
+          preset,
+          since,
+          until,
+          shard,
+          mergeBy,
+          sortBy,
+          options,
+        }),
+      )
+    }
 
-    process.stdout.write(`${JSON.stringify({ wrote: rows.length, shards: writes })}\n`)
+    process.stdout.write(`${JSON.stringify({ wrote: rows.length, streamed, shards: Array.from(writesByDest.values()) })}\n`)
   },
 )
 

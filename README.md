@@ -172,6 +172,7 @@ With `--shard month`, `unifiedmirror` writes:
 - `<dest-root>/<YYYY-MM>/meta.json`
 
 The sync path merges by record `id`, replaces older copies on collision, and sorts by timestamp.
+During long syncs, shard files and manifests are updated incrementally as batches arrive so partial progress survives interruption.
 
 ## Presets
 

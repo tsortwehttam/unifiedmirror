@@ -42,6 +42,7 @@ export async function listGmailMessages(params: {
   until: string | undefined
   maxResults: number
   verbose: boolean
+  onBatch: ((rows: UnifiedRecord[]) => Promise<void>) | undefined
 }): Promise<UnifiedRecord[]> {
   let client = gmailClient(params.account, params.verbose)
   let since = parseTime(params.since)
@@ -69,6 +70,7 @@ export async function listGmailMessages(params: {
       query,
     })
 
+    let batch: UnifiedRecord[] = []
     for (let ref of refs) {
       if (!ref.id || out.length >= params.maxResults) break
       let fetched = await client.users.messages.get({
@@ -81,7 +83,10 @@ export async function listGmailMessages(params: {
       if (since != null && time < since) continue
       if (until != null && time > until) continue
       out.push(row)
+      batch.push(row)
     }
+
+    if (batch.length) await params.onBatch?.(batch)
 
     pageToken = res.data.nextPageToken ?? undefined
     if (!pageToken) break

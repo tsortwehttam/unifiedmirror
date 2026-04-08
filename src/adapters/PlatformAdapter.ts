@@ -17,6 +17,7 @@ export type AdapterListParams = {
   maxResults: number
   verbose: boolean
   options: Record<string, boolean | number | string | undefined>
+  onBatch: ((rows: UnifiedRecord[]) => Promise<void>) | undefined
 }
 
 export type PlatformAdapter = {

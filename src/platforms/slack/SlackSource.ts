@@ -137,6 +137,7 @@ export async function listSlackMessages(params: {
   maxResults: number
   includeThreadReplies: boolean
   verbose: boolean
+  onBatch: ((rows: UnifiedRecord[]) => Promise<void>) | undefined
 }): Promise<UnifiedRecord[]> {
   let clients = slackClients(params.account, params.verbose)
   let reader = slackReadClient(clients)
@@ -169,21 +170,22 @@ export async function listSlackMessages(params: {
       let userIds = collectUserIds(messages as SlackMessage[])
       await populateUserCache(reader, userIds, userCache, params.verbose)
 
+      let batch: UnifiedRecord[] = []
       for (let message of messages) {
         if (out.length >= params.maxResults) break
         if (!message.ts) continue
         if (message.subtype === "channel_join" || message.subtype === "channel_leave") continue
         let normalized = message as SlackHistoryMessage
-        out.push(
-          toUnifiedRecord(normalized, {
-            account: params.account,
-            channelId: channel.id,
-            channelName: channel.name,
-            teamId: clients.teamId ?? "",
-            userCache,
-            permalink: undefined,
-          }),
-        )
+        let row = toUnifiedRecord(normalized, {
+          account: params.account,
+          channelId: channel.id,
+          channelName: channel.name,
+          teamId: clients.teamId ?? "",
+          userCache,
+          permalink: undefined,
+        })
+        out.push(row)
+        batch.push(row)
 
         if (out.length >= params.maxResults || !params.includeThreadReplies || !shouldFetchReplies(normalized)) continue
         let replies = await listThreadReplies({
@@ -199,18 +201,20 @@ export async function listSlackMessages(params: {
         for (let reply of replies) {
           if (out.length >= params.maxResults) break
           if (!reply.ts) continue
-          out.push(
-            toUnifiedRecord(reply, {
-              account: params.account,
-              channelId: channel.id,
-              channelName: channel.name,
-              teamId: clients.teamId ?? "",
-              userCache,
-              permalink: undefined,
-            }),
-          )
+          let row = toUnifiedRecord(reply, {
+            account: params.account,
+            channelId: channel.id,
+            channelName: channel.name,
+            teamId: clients.teamId ?? "",
+            userCache,
+            permalink: undefined,
+          })
+          out.push(row)
+          batch.push(row)
         }
       }
+
+      if (batch.length) await params.onBatch?.(batch)
 
       cursor = res.response_metadata?.next_cursor || undefined
       if (!cursor || !res.has_more) break

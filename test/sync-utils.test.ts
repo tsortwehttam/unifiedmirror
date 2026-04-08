@@ -129,3 +129,98 @@ test("syncJsonl merges by id, sorts by timestamp, and writes manifests per month
   assert.equal(meta.lastTimestamp, "2026-04-03T00:00:00Z")
   assert.deepEqual(meta.kinds, ["message"])
 })
+
+function readTree(dir: string): Map<string, string> {
+  let out = new Map<string, string>()
+
+  function walk(root: string): void {
+    for (let name of fs.readdirSync(root)) {
+      let pathname = path.join(root, name)
+      let rel = path.relative(dir, pathname)
+      let stat = fs.statSync(pathname)
+      if (stat.isDirectory()) {
+        walk(pathname)
+        continue
+      }
+      out.set(rel, fs.readFileSync(pathname, "utf8"))
+    }
+  }
+
+  walk(dir)
+  return out
+}
+
+function normalizeTree(tree: Map<string, string>): Map<string, string> {
+  let out = new Map<string, string>()
+  for (let [rel, content] of tree) {
+    if (!rel.endsWith("meta.json")) {
+      out.set(rel, content)
+      continue
+    }
+    let meta = JSON.parse(content) as Record<string, unknown>
+    meta.lastSyncedAt = "<normalized>"
+    out.set(rel, JSON.stringify(meta, null, 2) + "\n")
+  }
+  return out
+}
+
+test("incremental sync writes match one-shot sync output", () => {
+  let fullDir = fs.mkdtempSync(path.join(os.tmpdir(), "unifiedmirror-sync-full-"))
+  let batchDir = fs.mkdtempSync(path.join(os.tmpdir(), "unifiedmirror-sync-batch-"))
+  let rows = [
+    makeRecord({ id: "m", timestamp: "2026-03-31T23:59:59Z", subject: "march" }),
+    makeRecord({ id: "a", timestamp: "2026-04-01T00:00:00Z", subject: "first" }),
+    makeRecord({ id: "b", timestamp: "2026-04-02T00:00:00Z", subject: "second" }),
+    makeRecord({ id: "a", timestamp: "2026-04-03T00:00:00Z", subject: "updated" }),
+  ]
+
+  syncJsonl({
+    rows,
+    destRoot: fullDir,
+    platform: "gmail",
+    account: "default",
+    kinds: ["message"],
+    query: "q",
+    preset: undefined,
+    since: "2026-03-01T00:00:00Z",
+    until: "2026-04-30T23:59:59Z",
+    shard: "month",
+    mergeBy: "id",
+    sortBy: "timestamp",
+    options: {},
+  })
+
+  syncJsonl({
+    rows: rows.slice(0, 2),
+    destRoot: batchDir,
+    platform: "gmail",
+    account: "default",
+    kinds: ["message"],
+    query: "q",
+    preset: undefined,
+    since: "2026-03-01T00:00:00Z",
+    until: "2026-04-30T23:59:59Z",
+    shard: "month",
+    mergeBy: "id",
+    sortBy: "timestamp",
+    options: {},
+  })
+
+  syncJsonl({
+    rows: rows.slice(2),
+    destRoot: batchDir,
+    platform: "gmail",
+    account: "default",
+    kinds: ["message"],
+    query: "q",
+    preset: undefined,
+    since: "2026-03-01T00:00:00Z",
+    until: "2026-04-30T23:59:59Z",
+    shard: "month",
+    mergeBy: "id",
+    sortBy: "timestamp",
+    options: {},
+  })
+
+  assert.deepEqual(normalizeTree(readTree(batchDir)), normalizeTree(readTree(fullDir)))
+})

@@ -96,6 +96,7 @@ test("listMessagesMessages reads macOS Messages rows into unified records", asyn
         until: "2026-04-05T12:06:00Z",
         maxResults: 10,
         verbose: false,
+        onBatch: undefined,
       })
 
       assert.equal(rows.length, 2)

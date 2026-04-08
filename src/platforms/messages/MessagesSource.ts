@@ -181,6 +181,7 @@ export async function listMessagesMessages(params: {
   until: string | undefined
   maxResults: number
   verbose: boolean
+  onBatch: ((rows: UnifiedRecord[]) => Promise<void>) | undefined
 }): Promise<UnifiedRecord[]> {
   let config = resolveMessagesAccountConfig(params.account)
   verboseLog(params.verbose, "messages db", { dbPath: config.dbPath, attachmentsRoot: config.attachmentsRoot })
@@ -194,7 +195,7 @@ export async function listMessagesMessages(params: {
       rows.map(row => row.rowid),
       config.attachmentsRoot,
     )
-    return rows.map(row =>
+    let records = rows.map(row =>
       toUnifiedRecord(row, {
         account: params.account,
         attachments: attachments.get(row.rowid) ?? [],
@@ -202,6 +203,8 @@ export async function listMessagesMessages(params: {
         me: config.me,
       }),
     )
+    await params.onBatch?.(records)
+    return records
   } finally {
     db.close()
   }

@@ -101,6 +101,7 @@ export async function listAsanaMessages(params: {
   includeSubtasks: boolean
   includeComments: boolean
   verbose: boolean
+  onBatch: ((rows: UnifiedRecord[]) => Promise<void>) | undefined
 }): Promise<UnifiedRecord[]> {
   let { token } = asanaClient(params.account, params.verbose)
   let projectGids = params.query
@@ -128,12 +129,15 @@ export async function listAsanaMessages(params: {
       let tasks: AsanaTask[] = response.data ?? []
       verboseLog(params.verbose, "asana tasks fetched", { projectGid, count: tasks.length })
 
+      let batch: UnifiedRecord[] = []
       for (let task of tasks) {
         if (results.length >= params.maxResults) break
         let ts = new Date(task.created_at).getTime()
         if (params.since && ts < new Date(params.since).getTime()) continue
         if (params.until && ts >= new Date(params.until).getTime()) continue
-        results.push(toUnifiedRecord(task, params.account))
+        let row = toUnifiedRecord(task, params.account)
+        results.push(row)
+        batch.push(row)
 
         if (params.includeSubtasks) {
           let subtasks = await fetchSubtasks(token.pat, task.gid, params.verbose)
@@ -141,7 +145,9 @@ export async function listAsanaMessages(params: {
             let subTs = new Date(subtask.created_at).getTime()
             if (params.since && subTs < new Date(params.since).getTime()) continue
             if (params.until && subTs >= new Date(params.until).getTime()) continue
-            results.push(toUnifiedRecord(subtask, params.account))
+            let row = toUnifiedRecord(subtask, params.account)
+            results.push(row)
+            batch.push(row)
           }
         }
 
@@ -152,9 +158,12 @@ export async function listAsanaMessages(params: {
             if (params.since && commentTs < new Date(params.since).getTime()) continue
             if (params.until && commentTs >= new Date(params.until).getTime()) continue
             results.push(comment)
+            batch.push(comment)
           }
         }
       }
+
+      if (batch.length) await params.onBatch?.(batch)
 
       offset = response.next_page?.offset
       if (!offset) break

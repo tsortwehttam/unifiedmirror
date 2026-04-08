@@ -83,6 +83,7 @@ export async function listShopifyOrders(params: {
   until: string | undefined
   maxResults: number
   verbose: boolean
+  onBatch: ((rows: UnifiedRecord[]) => Promise<void>) | undefined
 }): Promise<UnifiedRecord[]> {
   let { token } = shopifyClient(params.account, params.verbose)
   let out: UnifiedRecord[] = []
@@ -101,11 +102,16 @@ export async function listShopifyOrders(params: {
       verbose: params.verbose,
     })
 
+    let batch: UnifiedRecord[] = []
     for (let order of data.orders.nodes) {
       if (!withinBounds(order.createdAt, params.since, params.until)) continue
-      out.push(toUnifiedRecord(order, params.account, token.shop))
+      let row = toUnifiedRecord(order, params.account, token.shop)
+      out.push(row)
+      batch.push(row)
       if (out.length >= params.maxResults) break
     }
+
+    if (batch.length) await params.onBatch?.(batch)
 
     if (!data.orders.pageInfo.hasNextPage || !data.orders.pageInfo.endCursor) break
     after = data.orders.pageInfo.endCursor

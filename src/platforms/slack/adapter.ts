@@ -16,6 +16,7 @@ export const slackAdapter: PlatformAdapter = {
       maxResults: params.maxResults,
       includeThreadReplies: params.options.includeThreadReplies !== false,
       verbose: params.verbose,
+      onBatch: params.onBatch,
     })
   },
   fetchAttachment: fetchSlackAttachment,
