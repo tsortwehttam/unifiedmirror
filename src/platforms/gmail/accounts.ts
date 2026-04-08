@@ -34,7 +34,7 @@ export function configureAccountsCli(cli: Argv): Argv {
     .help()
 }
 
-export async function parseAccountsCli(args: string[], scriptName = "um gmail accounts"): Promise<void> {
+export async function parseAccountsCli(args: string[], scriptName = "unifiedmirror gmail accounts"): Promise<void> {
   let argv = await configureAccountsCli(yargs(args).scriptName(scriptName)).parseAsync()
   let { accounts, dirs } = listGmailAccounts()
   verboseLog(argv.verbose === true, "gmail account dirs", dirs)

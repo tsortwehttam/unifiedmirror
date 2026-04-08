@@ -1,6 +1,6 @@
 import fs from "node:fs"
 import path from "node:path"
-import type { Platform, UnifiedMessage } from "../types"
+import type { Platform, UnifiedRecord } from "../types"
 import { readJsonl, resolveJsonlDest, writeJsonlAtomic } from "./JsonlUtils"
 
 export type MergeBy = "id"
@@ -10,6 +10,7 @@ export type ShardMode = "month" | "none"
 export type SyncManifest = {
   platform: Platform
   account: string
+  kinds: string[]
   query: string
   preset: string | undefined
   since: string | undefined
@@ -21,12 +22,12 @@ export type SyncManifest = {
   shard: ShardMode
   mergeBy: MergeBy
   sortBy: SortBy
-  includeThreadReplies: boolean | undefined
+  options: Record<string, boolean | number | string | undefined>
 }
 
-export function mergeMessages(existing: UnifiedMessage[], incoming: UnifiedMessage[], mergeBy: MergeBy): UnifiedMessage[] {
+export function mergeRecords(existing: UnifiedRecord[], incoming: UnifiedRecord[], mergeBy: MergeBy): UnifiedRecord[] {
   if (mergeBy === "id") {
-    let out = new Map<string, UnifiedMessage>()
+    let out = new Map<string, UnifiedRecord>()
     for (let row of existing) out.set(row.id, row)
     for (let row of incoming) out.set(row.id, row)
     return Array.from(out.values())
@@ -34,7 +35,7 @@ export function mergeMessages(existing: UnifiedMessage[], incoming: UnifiedMessa
   return [...existing, ...incoming]
 }
 
-export function sortMessages(rows: UnifiedMessage[], sortBy: SortBy): UnifiedMessage[] {
+export function sortRecords(rows: UnifiedRecord[], sortBy: SortBy): UnifiedRecord[] {
   if (sortBy === "none") return [...rows]
   return [...rows].sort((a, b) => {
     let diff = Date.parse(a.timestamp) - Date.parse(b.timestamp)
@@ -49,8 +50,8 @@ export function monthShard(timestamp: string): string {
   return date.toISOString().slice(0, 7)
 }
 
-export function shardMessages(rows: UnifiedMessage[], shard: ShardMode): Map<string, UnifiedMessage[]> {
-  let out = new Map<string, UnifiedMessage[]>()
+export function shardRecords(rows: UnifiedRecord[], shard: ShardMode): Map<string, UnifiedRecord[]> {
+  let out = new Map<string, UnifiedRecord[]>()
   for (let row of rows) {
     let key = shard === "month" ? monthShard(row.timestamp) : ""
     let list = out.get(key) ?? []
@@ -60,9 +61,10 @@ export function shardMessages(rows: UnifiedMessage[], shard: ShardMode): Map<str
   return out
 }
 
-function buildManifest(rows: UnifiedMessage[], params: {
+function buildManifest(rows: UnifiedRecord[], params: {
   platform: Platform
   account: string
+  kinds: string[]
   query: string
   preset: string | undefined
   since: string | undefined
@@ -70,12 +72,13 @@ function buildManifest(rows: UnifiedMessage[], params: {
   shard: ShardMode
   mergeBy: MergeBy
   sortBy: SortBy
-  includeThreadReplies: boolean | undefined
+  options: Record<string, boolean | number | string | undefined>
 }): SyncManifest {
-  let sorted = sortMessages(rows, "timestamp")
+  let sorted = sortRecords(rows, "timestamp")
   return {
     platform: params.platform,
     account: params.account,
+    kinds: params.kinds,
     query: params.query,
     preset: params.preset,
     since: params.since,
@@ -87,12 +90,12 @@ function buildManifest(rows: UnifiedMessage[], params: {
     shard: params.shard,
     mergeBy: params.mergeBy,
     sortBy: params.sortBy,
-    includeThreadReplies: params.includeThreadReplies,
+    options: params.options,
   }
 }
 
 function resolveShardPath(destRoot: string, shard: ShardMode, key: string): string {
-  if (shard === "month") return path.resolve(destRoot, key, "messages.jsonl")
+  if (shard === "month") return path.resolve(destRoot, key, "records.jsonl")
   return resolveJsonlDest(destRoot)
 }
 
@@ -103,10 +106,11 @@ function resolveManifestPath(destRoot: string, shard: ShardMode, key: string): s
 }
 
 export function syncJsonl(params: {
-  rows: UnifiedMessage[]
+  rows: UnifiedRecord[]
   destRoot: string
   platform: Platform
   account: string
+  kinds: string[]
   query: string
   preset: string | undefined
   since: string | undefined
@@ -114,15 +118,15 @@ export function syncJsonl(params: {
   shard: ShardMode
   mergeBy: MergeBy
   sortBy: SortBy
-  includeThreadReplies: boolean | undefined
+  options: Record<string, boolean | number | string | undefined>
 }): Array<{ shardKey: string; dest: string; rowCount: number; manifestPath: string }> {
-  let groups = shardMessages(params.rows, params.shard)
+  let groups = shardRecords(params.rows, params.shard)
   let out: Array<{ shardKey: string; dest: string; rowCount: number; manifestPath: string }> = []
 
   for (let [key, incoming] of groups) {
     let dest = resolveShardPath(params.destRoot, params.shard, key)
-    let existing = readJsonl<UnifiedMessage>(dest)
-    let merged = sortMessages(mergeMessages(existing, incoming, params.mergeBy), params.sortBy)
+    let existing = readJsonl<UnifiedRecord>(dest)
+    let merged = sortRecords(mergeRecords(existing, incoming, params.mergeBy), params.sortBy)
     writeJsonlAtomic(dest, merged)
 
     let manifestPath = resolveManifestPath(params.destRoot, params.shard, key)
@@ -133,6 +137,7 @@ export function syncJsonl(params: {
         buildManifest(merged, {
           platform: params.platform,
           account: params.account,
+          kinds: params.kinds,
           query: params.query,
           preset: params.preset,
           since: params.since,
@@ -140,7 +145,7 @@ export function syncJsonl(params: {
           shard: params.shard,
           mergeBy: params.mergeBy,
           sortBy: params.sortBy,
-          includeThreadReplies: params.includeThreadReplies,
+          options: params.options,
         }),
         null,
         2,

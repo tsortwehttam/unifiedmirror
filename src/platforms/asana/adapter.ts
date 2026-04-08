@@ -1,0 +1,41 @@
+import type { PlatformAdapter } from "../../adapters/PlatformAdapter"
+import { fetchAsanaAttachment, listAsanaMessages } from "./AsanaSource"
+import { parseAccountsCli } from "./accounts"
+import { parseAuthCli } from "./auth"
+
+export const asanaAdapter: PlatformAdapter = {
+  platform: "asana",
+  kinds: ["task", "comment"],
+  listRecords(params) {
+    return listAsanaMessages({
+      account: params.account,
+      query: params.query,
+      preset: params.preset,
+      since: params.since,
+      until: params.until,
+      maxResults: params.maxResults,
+      includeSubtasks: params.options.includeSubtasks !== false,
+      includeComments: params.options.includeComments !== false,
+      verbose: params.verbose,
+    })
+  },
+  fetchAttachment: fetchAsanaAttachment,
+  parseAccountsCli,
+  parseAuthCli,
+  pullOptions: [
+    {
+      name: "include-subtasks",
+      type: "boolean",
+      default: true,
+      choices: [],
+      describe: "Asana only. Include subtasks for each task.",
+    },
+    {
+      name: "include-comments",
+      type: "boolean",
+      default: true,
+      choices: [],
+      describe: "Asana only. Include comments for each task.",
+    },
+  ],
+}

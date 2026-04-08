@@ -1,4 +1,5 @@
-import type { AsanaMetadata, Participant, UnifiedAttachment, UnifiedMessage } from "../../types"
+import type { AsanaMetadata, UnifiedAttachment, UnifiedParty, UnifiedRecord } from "../../types"
+import { buildRecordId, dedupeParties, trimSummary } from "../PlatformUtils"
 
 export type AsanaUser = {
   gid: string
@@ -54,11 +55,11 @@ export type AsanaStory = {
   resource_subtype: string | undefined
 }
 
-function toParticipant(user: AsanaUser): Participant {
-  return { address: user.gid, name: user.name }
+function toParty(user: AsanaUser, role: string): UnifiedParty {
+  return { id: user.gid, address: user.gid, name: user.name, role }
 }
 
-export function toUnifiedMessage(task: AsanaTask): UnifiedMessage {
+export function toUnifiedRecord(task: AsanaTask, account: string): UnifiedRecord {
   let projectGids = task.memberships
     .map(m => m.project?.gid)
     .filter((gid): gid is string => !!gid)
@@ -67,12 +68,12 @@ export function toUnifiedMessage(task: AsanaTask): UnifiedMessage {
     .map(m => m.section?.gid)
     .find((gid): gid is string => !!gid)
 
-  let from: Participant | undefined = task.created_by ? toParticipant(task.created_by) : undefined
-  let to: Participant[] = task.assignee ? [toParticipant(task.assignee)] : []
+  let from: UnifiedParty | undefined = task.created_by ? toParty(task.created_by, "creator") : undefined
+  let to: UnifiedParty[] = task.assignee ? [toParty(task.assignee, "assignee")] : []
   let assigneeGid = task.assignee?.gid
-  let cc: Participant[] = task.followers
+  let cc: UnifiedParty[] = task.followers
     .filter(f => f.gid !== assigneeGid)
-    .map(toParticipant)
+    .map(user => toParty(user, "follower"))
 
   let attachments: UnifiedAttachment[] = task.attachments.map(a => ({
     id: a.gid,
@@ -82,7 +83,7 @@ export function toUnifiedMessage(task: AsanaTask): UnifiedMessage {
     url: a.download_url,
   }))
 
-  let threadId = task.parent?.gid ?? projectGids[0]
+  let threadId = buildRecordId("asana", account, "task", "thread", task.parent?.gid ?? projectGids[0] ?? task.gid)
 
   let metadata: AsanaMetadata = {
     platform: "asana",
@@ -101,24 +102,40 @@ export function toUnifiedMessage(task: AsanaTask): UnifiedMessage {
   }
 
   return {
-    id: task.gid,
+    id: buildRecordId("asana", account, "task", task.gid),
+    kind: "task",
     platform: "asana",
+    account,
     timestamp: task.created_at,
+    timestamps: {
+      created: task.created_at,
+      updated: undefined,
+      occurred: task.created_at,
+      sent: undefined,
+      received: undefined,
+    },
     subject: task.name,
+    summary: trimSummary(task.notes ?? task.name),
     bodyText: task.notes,
     bodyHtml: task.html_notes,
     from,
     to,
     cc,
     bcc: [],
+    participants: dedupeParties([from, ...to, ...cc]),
     attachments,
+    amounts: [],
+    tags: [],
+    status: task.completed ? "complete" : "incomplete",
+    url: task.permalink_url,
     threadId,
+    parentId: task.parent?.gid ? buildRecordId("asana", account, "task", task.parent.gid) : undefined,
     platformMetadata: metadata,
   }
 }
 
-export function commentToUnifiedMessage(story: AsanaStory, taskGid: string, taskName: string): UnifiedMessage {
-  let from: Participant | undefined = story.created_by ? toParticipant(story.created_by) : undefined
+export function commentToUnifiedRecord(story: AsanaStory, taskGid: string, taskName: string, account: string): UnifiedRecord {
+  let from: UnifiedParty | undefined = story.created_by ? toParty(story.created_by, "author") : undefined
 
   let metadata: AsanaMetadata = {
     platform: "asana",
@@ -133,18 +150,34 @@ export function commentToUnifiedMessage(story: AsanaStory, taskGid: string, task
   }
 
   return {
-    id: `comment:${story.gid}`,
+    id: buildRecordId("asana", account, "comment", story.gid),
+    kind: "comment",
     platform: "asana",
+    account,
     timestamp: story.created_at,
+    timestamps: {
+      created: story.created_at,
+      updated: undefined,
+      occurred: story.created_at,
+      sent: undefined,
+      received: undefined,
+    },
     subject: taskName,
+    summary: trimSummary(story.text ?? taskName),
     bodyText: story.text,
     bodyHtml: story.html_text,
     from,
     to: [],
     cc: [],
     bcc: [],
+    participants: dedupeParties([from]),
     attachments: [],
-    threadId: taskGid,
+    amounts: [],
+    tags: [],
+    status: undefined,
+    url: undefined,
+    threadId: buildRecordId("asana", account, "task", "thread", taskGid),
+    parentId: buildRecordId("asana", account, "task", taskGid),
     platformMetadata: metadata,
   }
 }

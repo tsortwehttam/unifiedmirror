@@ -1,10 +1,10 @@
 import fs from "node:fs"
 import path from "node:path"
 import Database from "better-sqlite3"
-import type { UnifiedAttachment, UnifiedMessage } from "../../types"
+import type { UnifiedAttachment, UnifiedRecord } from "../../types"
 import { verboseLog } from "../../Verbose"
 import { resolveMessagesAccountConfig } from "./accountFile"
-import { toUnifiedMessage, type MessagesDateUnit, type MessagesRow } from "./toUnifiedMessage"
+import { toUnifiedRecord, type MessagesDateUnit, type MessagesRow } from "./toUnifiedRecord"
 
 type MessageAttachmentRow = {
   messageId: number
@@ -181,7 +181,7 @@ export async function listMessagesMessages(params: {
   until: string | undefined
   maxResults: number
   verbose: boolean
-}): Promise<UnifiedMessage[]> {
+}): Promise<UnifiedRecord[]> {
   let config = resolveMessagesAccountConfig(params.account)
   verboseLog(params.verbose, "messages db", { dbPath: config.dbPath, attachmentsRoot: config.attachmentsRoot })
   let db = openDatabase(config.dbPath)
@@ -195,7 +195,8 @@ export async function listMessagesMessages(params: {
       config.attachmentsRoot,
     )
     return rows.map(row =>
-      toUnifiedMessage(row, {
+      toUnifiedRecord(row, {
+        account: params.account,
         attachments: attachments.get(row.rowid) ?? [],
         dateUnit,
         me: config.me,

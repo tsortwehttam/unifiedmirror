@@ -1,9 +1,9 @@
-import type { AttachmentSelector, UnifiedMessage } from "../../types"
+import type { AttachmentSelector, UnifiedRecord } from "../../types"
 import { verboseLog } from "../../Verbose"
 import { collectAttachments } from "./GmailMessageHelpers"
 import { gmailClient } from "./GmailClient"
 import { resolveGmailQuery } from "./GmailQueryPresets"
-import { toUnifiedMessage } from "./toUnifiedMessage"
+import { toUnifiedRecord } from "./toUnifiedRecord"
 
 function parseTime(value: string | undefined): number | undefined {
   if (!value) return undefined
@@ -42,7 +42,7 @@ export async function listGmailMessages(params: {
   until: string | undefined
   maxResults: number
   verbose: boolean
-}): Promise<UnifiedMessage[]> {
+}): Promise<UnifiedRecord[]> {
   let client = gmailClient(params.account, params.verbose)
   let since = parseTime(params.since)
   let until = parseTime(params.until)
@@ -52,7 +52,7 @@ export async function listGmailMessages(params: {
     since: params.since,
     until: params.until,
   })
-  let out: UnifiedMessage[] = []
+  let out: UnifiedRecord[] = []
   let pageToken: string | undefined
 
   while (out.length < params.maxResults) {
@@ -76,7 +76,7 @@ export async function listGmailMessages(params: {
         id: ref.id,
         format: "full",
       })
-      let row = toUnifiedMessage(fetched.data)
+      let row = toUnifiedRecord(fetched.data, params.account)
       let time = Date.parse(row.timestamp)
       if (since != null && time < since) continue
       if (until != null && time > until) continue
@@ -100,15 +100,15 @@ function selectAttachment(
 }
 
 export async function fetchGmailAttachment(
-  msg: UnifiedMessage,
+  row: UnifiedRecord,
   selector: AttachmentSelector,
   account: string,
 ): Promise<Buffer | undefined> {
-  if (msg.platformMetadata.platform !== "gmail") return undefined
+  if (row.platformMetadata.platform !== "gmail") return undefined
   let client = gmailClient(account)
   let fetched = await client.users.messages.get({
     userId: "me",
-    id: msg.platformMetadata.messageId,
+    id: row.platformMetadata.messageId,
     format: "full",
   })
   let attachments = collectAttachments(fetched.data.payload ?? undefined)
@@ -118,7 +118,7 @@ export async function fetchGmailAttachment(
   if (!raw && attachment.attachmentId) {
     let extra = await client.users.messages.attachments.get({
       userId: "me",
-      messageId: msg.platformMetadata.messageId,
+      messageId: row.platformMetadata.messageId,
       id: attachment.attachmentId,
     })
     raw = extra.data.data ?? undefined

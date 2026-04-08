@@ -63,7 +63,7 @@ export function configureAuthCli(cli: Argv): Argv {
     .help()
 }
 
-export async function parseAuthCli(args: string[], scriptName = "um gmail auth"): Promise<void> {
+export async function parseAuthCli(args: string[], scriptName = "unifiedmirror gmail auth"): Promise<void> {
   let argv = await configureAuthCli(yargs(args).scriptName(scriptName)).parseAsync()
   await authForAccount(typeof argv.account === "string" ? argv.account : undefined, argv.verbose === true)
 }

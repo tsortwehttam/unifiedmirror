@@ -53,7 +53,7 @@ export function configureAccountsCli(cli: Argv): Argv {
     .help()
 }
 
-export async function parseAccountsCli(args: string[], scriptName = "um asana accounts"): Promise<void> {
+export async function parseAccountsCli(args: string[], scriptName = "unifiedmirror asana accounts"): Promise<void> {
   let argv = await configureAccountsCli(yargs(args).scriptName(scriptName)).parseAsync()
   let { accounts, dirs } = listAsanaAccounts()
   verboseLog(argv.verbose === true, "asana account dirs", dirs)

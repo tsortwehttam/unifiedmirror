@@ -1,9 +1,9 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { toUnifiedMessage } from "../src/platforms/slack/toUnifiedMessage"
+import { toUnifiedRecord } from "../src/platforms/slack/toUnifiedRecord"
 
 test("slack normalization keeps channel and file metadata", () => {
-  let row = toUnifiedMessage(
+  let row = toUnifiedRecord(
     {
       ts: "1711274400.100000",
       user: "U1",
@@ -28,6 +28,7 @@ test("slack normalization keeps channel and file metadata", () => {
       attachments: undefined,
     },
     {
+      account: "default",
       channelId: "C1",
       channelName: "general",
       teamId: "T1",
@@ -40,5 +41,6 @@ test("slack normalization keeps channel and file metadata", () => {
   assert.equal(row.from?.name, "Alice")
   assert.equal(row.to[0]?.address, "C1")
   assert.equal(row.attachments[0]?.filename, "report.pdf")
+  assert.equal(row.kind, "message")
   assert.equal(row.platformMetadata.platform, "slack")
 })

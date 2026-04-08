@@ -1,5 +1,5 @@
 {
-  "name": "um",
+  "name": "unifiedmirror",
   "version": "0.1.0",
   "type": "module",
   "exports": {
@@ -8,12 +8,12 @@
     "./types": "./src/types.ts"
   },
   "bin": {
-    "um": "bin/um.js"
+    "unifiedmirror": "bin/unifiedmirror.js"
   },
   "license": "Apache-2.0",
   "scripts": {
     "ts": "npx tsx --",
-    "um": "npx tsx src/cli/index.ts --",
+    "unifiedmirror": "npx tsx src/cli/index.ts --",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test test/*.test.ts",
     "verify": "yarn typecheck && yarn test"

@@ -1,9 +1,9 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { toUnifiedMessage } from "../src/platforms/gmail/toUnifiedMessage"
+import { toUnifiedRecord } from "../src/platforms/gmail/toUnifiedRecord"
 
 test("gmail normalization preserves attachment size when data is not inline", () => {
-  let row = toUnifiedMessage({
+  let row = toUnifiedRecord({
     id: "m1",
     threadId: "t1",
     internalDate: String(Date.parse("2026-03-20T10:00:00Z")),
@@ -28,7 +28,7 @@ test("gmail normalization preserves attachment size when data is not inline", ()
         },
       ],
     },
-  })
+  }, "default")
 
   assert.equal(row.attachments[0]?.filename, "report.pdf")
   assert.equal(row.attachments[0]?.sizeBytes, 1234)

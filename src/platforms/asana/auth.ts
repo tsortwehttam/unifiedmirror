@@ -28,7 +28,7 @@ export function configureAuthCli(cli: Argv): Argv {
     .help()
 }
 
-export async function parseAuthCli(args: string[], scriptName = "um asana auth"): Promise<void> {
+export async function parseAuthCli(args: string[], scriptName = "unifiedmirror asana auth"): Promise<void> {
   let argv = await configureAuthCli(yargs(args).scriptName(scriptName)).parseAsync()
   let account = typeof argv.account === "string" ? argv.account : DEFAULT_ACCOUNT
   let verbose = argv.verbose === true

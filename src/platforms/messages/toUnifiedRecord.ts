@@ -1,4 +1,5 @@
-import type { Participant, UnifiedAttachment, UnifiedMessage } from "../../types"
+import type { UnifiedAttachment, UnifiedParty, UnifiedRecord } from "../../types"
+import { buildRecordId, dedupeParties, trimSummary } from "../PlatformUtils"
 
 export type MessagesRow = {
   rowid: number
@@ -43,47 +44,71 @@ function pickBodyText(text: string | null, attributedBody: Buffer | null): strin
   return (parts[parts.length - 1] ?? raw).trim() || undefined
 }
 
-function parseParticipants(raw: string | null): Participant[] {
+function parseParties(raw: string | null): UnifiedParty[] {
   if (!raw) return []
   return Array.from(new Set(raw.split("\n").map(value => value.trim()).filter(Boolean))).map(address => ({
+    id: undefined,
     address,
     name: undefined,
+    role: "participant",
   }))
 }
 
-export function toUnifiedMessage(
+export function toUnifiedRecord(
   row: MessagesRow,
   opts: {
+    account: string
     attachments: UnifiedAttachment[]
     dateUnit: MessagesDateUnit
     me: string | undefined
   },
-): UnifiedMessage {
-  let chatParticipants = parseParticipants(row.chatHandles)
-  let from: Participant | undefined =
+): UnifiedRecord {
+  let chatParticipants = parseParties(row.chatHandles)
+  let from: UnifiedParty | undefined =
     row.isFromMe === 1
       ? opts.me
-        ? { address: opts.me, name: "me" }
-        : { address: "me", name: undefined }
+        ? { id: undefined, address: opts.me, name: "me", role: "sender" }
+        : { id: undefined, address: "me", name: undefined, role: "sender" }
       : row.handle
-        ? { address: row.handle, name: undefined }
+        ? { id: undefined, address: row.handle, name: undefined, role: "sender" }
         : undefined
-  let to = row.isFromMe === 1 ? chatParticipants : [{ address: opts.me ?? "me", name: opts.me ? "me" : undefined }]
+  let to =
+    row.isFromMe === 1
+      ? chatParticipants.map(party => ({ ...party, role: "recipient" }))
+      : [{ id: undefined, address: opts.me ?? "me", name: opts.me ? "me" : undefined, role: "recipient" }]
   let subject = row.chatName?.trim() || row.chatIdentifier?.trim() || row.handle?.trim() || row.service?.trim() || undefined
+  let timestamp = decodeAppleTime(row.date, opts.dateUnit)
+  let threadNative = row.chatGuid ?? (row.chatRowId != null ? String(row.chatRowId) : undefined)
 
   return {
-    id: row.guid,
+    id: buildRecordId("messages", opts.account, "message", row.guid),
+    kind: "message",
     platform: "messages",
-    timestamp: decodeAppleTime(row.date, opts.dateUnit),
+    account: opts.account,
+    timestamp,
+    timestamps: {
+      created: timestamp,
+      updated: undefined,
+      occurred: timestamp,
+      sent: row.isFromMe === 1 ? timestamp : undefined,
+      received: row.isFromMe === 1 ? undefined : timestamp,
+    },
     subject,
+    summary: trimSummary(pickBodyText(row.text, row.attributedBody)),
     bodyText: pickBodyText(row.text, row.attributedBody),
     bodyHtml: undefined,
     from,
     to,
     cc: [],
     bcc: [],
+    participants: dedupeParties([from, ...to, ...chatParticipants]),
     attachments: opts.attachments,
-    threadId: row.chatGuid ?? (row.chatRowId != null ? String(row.chatRowId) : undefined),
+    amounts: [],
+    tags: row.service ? [row.service] : [],
+    status: undefined,
+    url: undefined,
+    threadId: threadNative ? buildRecordId("messages", opts.account, "message", "thread", threadNative) : undefined,
+    parentId: undefined,
     platformMetadata: {
       platform: "messages",
       messageRowId: row.rowid,

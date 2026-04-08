@@ -7,20 +7,16 @@ import {
   setPwdConfigDir,
 } from "../src/config/CliConfig"
 
-test("resolveConfigDirs prefers .um before legacy .msgmon roots", () => {
-  let base = path.resolve("/tmp/um-config-test")
-  setPwdConfigDir(path.resolve(base, ".um"))
+test("resolveConfigDirs includes .unifiedmirror roots", () => {
+  let base = path.resolve("/tmp/unifiedmirror-config-test")
+  setPwdConfigDir(path.resolve(base, ".unifiedmirror"))
   let dirs = resolveConfigDirs()
-  let umIndex = dirs.findIndex(value => value.endsWith(`${path.sep}.um`))
-  let legacyIndex = dirs.findIndex(value => value.endsWith(`${path.sep}.msgmon`))
-  assert.notEqual(umIndex, -1)
-  assert.notEqual(legacyIndex, -1)
-  assert.ok(umIndex < legacyIndex)
+  assert.ok(dirs.some(value => value.endsWith(`${path.sep}.unifiedmirror`)))
 })
 
-test("resolveTokenWritePathForAccount writes to .um by default", () => {
-  let base = path.resolve("/tmp/um-config-test-write")
-  setPwdConfigDir(path.resolve(base, ".um"))
+test("resolveTokenWritePathForAccount writes to .unifiedmirror by default", () => {
+  let base = path.resolve("/tmp/unifiedmirror-config-test-write")
+  setPwdConfigDir(path.resolve(base, ".unifiedmirror"))
   let value = resolveTokenWritePathForAccount("work", "gmail")
-  assert.equal(value, path.resolve(base, ".um", "gmail", "tokens", "work.json"))
+  assert.equal(value, path.resolve(base, ".unifiedmirror", "gmail", "tokens", "work.json"))
 })

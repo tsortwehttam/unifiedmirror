@@ -74,8 +74,8 @@ function setupDb(dbPath: string): void {
   }
 }
 
-test("listMessagesMessages reads macOS Messages rows into unified messages", async () => {
-  let dir = fs.mkdtempSync(path.resolve(os.tmpdir(), "um-messages-test-"))
+test("listMessagesMessages reads macOS Messages rows into unified records", async () => {
+  let dir = fs.mkdtempSync(path.resolve(os.tmpdir(), "unifiedmirror-messages-test-"))
   let dbPath = path.resolve(dir, "chat.db")
   let attachmentsRoot = path.resolve(dir, "Attachments")
   fs.mkdirSync(attachmentsRoot, { recursive: true })
@@ -83,9 +83,9 @@ test("listMessagesMessages reads macOS Messages rows into unified messages", asy
 
   await withEnv(
     {
-      UM_MESSAGES_DB_PATH: dbPath,
-      UM_MESSAGES_ATTACHMENTS_ROOT: attachmentsRoot,
-      UM_MESSAGES_ME: "me@example.com",
+      UNIFIEDMIRROR_MESSAGES_DB_PATH: dbPath,
+      UNIFIEDMIRROR_MESSAGES_ATTACHMENTS_ROOT: attachmentsRoot,
+      UNIFIEDMIRROR_MESSAGES_ME: "me@example.com",
     },
     async () => {
       let rows = await listMessagesMessages({
@@ -99,15 +99,16 @@ test("listMessagesMessages reads macOS Messages rows into unified messages", asy
       })
 
       assert.equal(rows.length, 2)
-      assert.equal(rows[0].id, "msg-2")
+      assert.equal(rows[0].id, "messages:default:message:msg-2")
       assert.equal(rows[0].platform, "messages")
+      assert.equal(rows[0].kind, "message")
       assert.equal(rows[0].from?.address, "me@example.com")
-      assert.deepEqual(rows[0].to, [{ address: "+15551234567", name: undefined }])
+      assert.deepEqual(rows[0].to, [{ id: undefined, address: "+15551234567", name: undefined, role: "recipient" }])
       assert.equal(rows[0].attachments[0]?.filename, "test.jpg")
       assert.equal(rows[0].attachments[0]?.url, path.resolve(attachmentsRoot, "f1/test.jpg"))
-      assert.equal(rows[0].threadId, "iMessage;-;+15551234567")
+      assert.equal(rows[0].threadId, "messages:default:message:thread:iMessage;-;+15551234567")
       assert.equal(rows[1].from?.address, "+15551234567")
-      assert.deepEqual(rows[1].to, [{ address: "me@example.com", name: "me" }])
+      assert.deepEqual(rows[1].to, [{ id: undefined, address: "me@example.com", name: "me", role: "recipient" }])
       assert.equal(rows[1].bodyText, "Hi from Alice")
       assert.equal(rows[1].timestamp, "2026-04-05T12:00:00.000Z")
     },

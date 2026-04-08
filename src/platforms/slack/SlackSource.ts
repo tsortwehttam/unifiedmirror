@@ -1,8 +1,8 @@
 import type { WebClient } from "@slack/web-api"
-import type { AttachmentSelector, UnifiedMessage } from "../../types"
+import type { AttachmentSelector, UnifiedRecord } from "../../types"
 import { verboseLog } from "../../Verbose"
 import { slackClients, slackReadClient } from "./slackClient"
-import { toUnifiedMessage, type SlackMessage, type UserCache } from "./toUnifiedMessage"
+import { toUnifiedRecord, type SlackMessage, type UserCache } from "./toUnifiedRecord"
 
 type SlackHistoryMessage = SlackMessage & {
   reply_count: number | undefined
@@ -137,7 +137,7 @@ export async function listSlackMessages(params: {
   maxResults: number
   includeThreadReplies: boolean
   verbose: boolean
-}): Promise<UnifiedMessage[]> {
+}): Promise<UnifiedRecord[]> {
   let clients = slackClients(params.account, params.verbose)
   let reader = slackReadClient(clients)
   let queries = params.query
@@ -148,7 +148,7 @@ export async function listSlackMessages(params: {
 
   let channels = await resolveChannelIds(reader, queries, params.verbose)
   let userCache: UserCache = new Map()
-  let out: UnifiedMessage[] = []
+  let out: UnifiedRecord[] = []
 
   for (let channel of channels) {
     if (out.length >= params.maxResults) break
@@ -175,7 +175,8 @@ export async function listSlackMessages(params: {
         if (message.subtype === "channel_join" || message.subtype === "channel_leave") continue
         let normalized = message as SlackHistoryMessage
         out.push(
-          toUnifiedMessage(normalized, {
+          toUnifiedRecord(normalized, {
+            account: params.account,
             channelId: channel.id,
             channelName: channel.name,
             teamId: clients.teamId ?? "",
@@ -199,7 +200,8 @@ export async function listSlackMessages(params: {
           if (out.length >= params.maxResults) break
           if (!reply.ts) continue
           out.push(
-            toUnifiedMessage(reply, {
+            toUnifiedRecord(reply, {
+              account: params.account,
               channelId: channel.id,
               channelName: channel.name,
               teamId: clients.teamId ?? "",
@@ -219,14 +221,14 @@ export async function listSlackMessages(params: {
 }
 
 export async function fetchSlackAttachment(
-  msg: UnifiedMessage,
+  row: UnifiedRecord,
   selector: AttachmentSelector,
   account: string,
 ): Promise<Buffer | undefined> {
-  if (msg.platformMetadata.platform !== "slack") return undefined
+  if (row.platformMetadata.platform !== "slack") return undefined
   let attachment = selector.id
-    ? msg.attachments.find(value => value.id === selector.id)
-    : msg.attachments.filter(value => !selector.filename || value.filename === selector.filename)[selector.index]
+    ? row.attachments.find(value => value.id === selector.id)
+    : row.attachments.filter(value => !selector.filename || value.filename === selector.filename)[selector.index]
   if (!attachment?.url) return undefined
   let clients = slackClients(account)
   let token = clients.tokenFile.user_token ?? clients.tokenFile.bot_token

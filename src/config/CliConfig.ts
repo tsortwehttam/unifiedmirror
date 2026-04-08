@@ -5,13 +5,10 @@ import { fileURLToPath } from "node:url"
 import type { Platform } from "../types"
 
 export const DEFAULT_ACCOUNT = "default"
-export const DEFAULT_CONFIG_DIRNAME = ".um"
-export const LEGACY_CONFIG_DIRNAME = ".msgmon"
+export const DEFAULT_CONFIG_DIRNAME = ".unifiedmirror"
 export const TOKEN_FILE_EXTENSION = ".json"
 export const GMAIL_SCOPES = [
   "https://www.googleapis.com/auth/gmail.readonly",
-  "https://www.googleapis.com/auth/gmail.modify",
-  "https://www.googleapis.com/auth/gmail.send",
 ]
 
 const APP_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
@@ -24,7 +21,7 @@ function dedupe(values: string[]): string[] {
 }
 
 function getConfiguredRoot(): string | undefined {
-  let envRoot = process.env.UM_CONFIG_DIR?.trim()
+  let envRoot = process.env.UNIFIEDMIRROR_CONFIG_DIR?.trim()
   if (envRoot) return path.resolve(envRoot)
   return undefined
 }
@@ -57,7 +54,6 @@ export function resolveConfigDirs(): string[] {
     ...explicitConfigRoots,
     ...preferred,
     ...getDefaultRoots(DEFAULT_CONFIG_DIRNAME),
-    ...getDefaultRoots(LEGACY_CONFIG_DIRNAME),
   ])
 }
 

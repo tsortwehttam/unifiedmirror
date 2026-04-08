@@ -4,38 +4,29 @@ import yargs from "yargs"
 import type { Argv } from "yargs"
 import { TOKEN_FILE_EXTENSION, resolveAllTokenDirs } from "../../config/CliConfig"
 import { verboseLog } from "../../Verbose"
-import type { SlackTokenFile } from "./slackClient"
+import type { ShopifyTokenFile } from "./shopifyClient"
 
-export type SlackAccountInfo = {
+export type ShopifyAccountInfo = {
   account: string
-  team_id: string | undefined
-  team_name: string | undefined
-  has_bot_token: boolean
-  has_user_token: boolean
+  shop: string | undefined
 }
 
-export function listSlackAccounts(): { accounts: SlackAccountInfo[]; dirs: string[] } {
-  let out = new Map<string, SlackAccountInfo>()
-  let dirs = resolveAllTokenDirs("slack")
+export function listShopifyAccounts(): { accounts: ShopifyAccountInfo[]; dirs: string[] } {
+  let out = new Map<string, ShopifyAccountInfo>()
+  let dirs = resolveAllTokenDirs("shopify")
   for (let dir of dirs) {
     if (!fs.existsSync(dir)) continue
     for (let entry of fs.readdirSync(dir, { withFileTypes: true })) {
       if (!entry.isFile() || !entry.name.endsWith(TOKEN_FILE_EXTENSION)) continue
       let account = path.basename(entry.name, TOKEN_FILE_EXTENSION)
       if (out.has(account)) continue
-      let info: SlackAccountInfo = {
+      let info: ShopifyAccountInfo = {
         account,
-        team_id: undefined,
-        team_name: undefined,
-        has_bot_token: false,
-        has_user_token: false,
+        shop: undefined,
       }
       try {
-        let raw: SlackTokenFile = JSON.parse(fs.readFileSync(path.resolve(dir, entry.name), "utf8"))
-        info.team_id = raw.team_id
-        info.team_name = raw.team_name
-        info.has_bot_token = !!raw.bot_token
-        info.has_user_token = !!raw.user_token
+        let raw: ShopifyTokenFile = JSON.parse(fs.readFileSync(path.resolve(dir, entry.name), "utf8"))
+        info.shop = raw.shop
       } catch {}
       out.set(account, info)
     }
@@ -59,13 +50,13 @@ export function configureAccountsCli(cli: Argv): Argv {
     .help()
 }
 
-export async function parseAccountsCli(args: string[], scriptName = "unifiedmirror slack accounts"): Promise<void> {
+export async function parseAccountsCli(args: string[], scriptName = "unifiedmirror shopify accounts"): Promise<void> {
   let argv = await configureAccountsCli(yargs(args).scriptName(scriptName)).parseAsync()
-  let { accounts, dirs } = listSlackAccounts()
-  verboseLog(argv.verbose === true, "slack account dirs", dirs)
+  let { accounts, dirs } = listShopifyAccounts()
+  verboseLog(argv.verbose === true, "shopify account dirs", dirs)
   if (argv.format === "text") {
     for (let account of accounts) {
-      process.stdout.write(`${account.team_name ? `${account.account} (${account.team_name})` : account.account}\n`)
+      process.stdout.write(`${account.shop ? `${account.account} (${account.shop})` : account.account}\n`)
     }
     return
   }

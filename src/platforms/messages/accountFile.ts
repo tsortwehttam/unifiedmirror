@@ -64,6 +64,6 @@ export function resolveMessagesAccountConfig(account: string): MessagesAccountCo
   }
 
   throw new Error(
-    `Missing Messages account "${account}". Set UM_MESSAGES_DB_PATH or create ${account}.json in one of: ${resolveAllTokenDirs("messages").join(", ")}`,
+    `Missing Messages account "${account}". Set UNIFIEDMIRROR_MESSAGES_DB_PATH or create ${account}.json in one of: ${resolveAllTokenDirs("messages").join(", ")}`,
   )
 }

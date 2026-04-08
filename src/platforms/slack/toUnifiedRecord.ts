@@ -1,4 +1,5 @@
-import type { Participant, UnifiedAttachment, UnifiedMessage } from "../../types"
+import type { UnifiedAttachment, UnifiedParty, UnifiedRecord } from "../../types"
+import { buildRecordId, dedupeParties, trimSummary } from "../PlatformUtils"
 
 export type SlackMessage = {
   ts: string
@@ -32,21 +33,22 @@ type SlackAttachment = {
 
 export type UserCache = Map<string, string>
 
-export function toUnifiedMessage(
+export function toUnifiedRecord(
   msg: SlackMessage,
   opts: {
+    account: string
     channelId: string
     channelName: string | undefined
     teamId: string
     userCache: UserCache
     permalink: string | undefined
   },
-): UnifiedMessage {
-  let from: Participant | undefined
+): UnifiedRecord {
+  let from: UnifiedParty | undefined
   if (msg.user) {
-    from = { address: msg.user, name: opts.userCache.get(msg.user) }
+    from = { id: msg.user, address: msg.user, name: opts.userCache.get(msg.user), role: "sender" }
   } else if (msg.bot_id) {
-    from = { address: msg.bot_id, name: `bot:${msg.bot_id}` }
+    from = { id: msg.bot_id, address: msg.bot_id, name: `bot:${msg.bot_id}`, role: "sender" }
   }
 
   let bodyText = msg.text ?? undefined
@@ -66,19 +68,41 @@ export function toUnifiedMessage(
     url: file.url_private_download || file.url_private || file.permalink,
   }))
 
+  let to: UnifiedParty[] = [{ id: opts.channelId, address: opts.channelId, name: opts.channelName, role: "channel" }]
+  let timestamp = new Date(parseFloat(msg.ts) * 1000).toISOString()
+  let threadId = buildRecordId("slack", opts.account, "message", "thread", opts.channelId, msg.thread_ts ?? msg.ts)
+
   return {
-    id: `${opts.channelId}:${msg.ts}`,
+    id: buildRecordId("slack", opts.account, "message", opts.channelId, msg.ts),
+    kind: "message",
     platform: "slack",
-    timestamp: new Date(parseFloat(msg.ts) * 1000).toISOString(),
+    account: opts.account,
+    timestamp,
+    timestamps: {
+      created: timestamp,
+      updated: undefined,
+      occurred: timestamp,
+      sent: timestamp,
+      received: timestamp,
+    },
     subject: opts.channelName ? `#${opts.channelName.replace(/^#/, "")}` : `channel:${opts.channelId}`,
+    summary: trimSummary(bodyText),
     bodyText,
     bodyHtml: undefined,
     from,
-    to: [{ address: opts.channelId, name: opts.channelName }],
+    to,
     cc: [],
     bcc: [],
+    participants: dedupeParties([from, ...to]),
     attachments,
-    threadId: msg.thread_ts ?? msg.ts,
+    amounts: [],
+    tags: [],
+    status: undefined,
+    url: opts.permalink ?? msg.permalink,
+    threadId,
+    parentId: msg.thread_ts && msg.thread_ts !== msg.ts
+      ? buildRecordId("slack", opts.account, "message", opts.channelId, msg.thread_ts)
+      : undefined,
     platformMetadata: {
       platform: "slack",
       teamId: opts.teamId,

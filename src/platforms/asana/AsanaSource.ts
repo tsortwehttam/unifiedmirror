@@ -1,7 +1,7 @@
-import type { AttachmentSelector, UnifiedMessage } from "../../types"
+import type { AttachmentSelector, UnifiedRecord } from "../../types"
 import { verboseLog } from "../../Verbose"
 import { asanaClient, asanaFetch } from "./asanaClient"
-import { toUnifiedMessage, commentToUnifiedMessage, type AsanaTask, type AsanaStory } from "./toUnifiedMessage"
+import { toUnifiedRecord, commentToUnifiedRecord, type AsanaTask, type AsanaStory } from "./toUnifiedRecord"
 
 const TASK_OPT_FIELDS = [
   "gid",
@@ -70,9 +70,10 @@ async function fetchComments(
   pat: string,
   taskGid: string,
   taskName: string,
+  account: string,
   verbose: boolean,
-): Promise<UnifiedMessage[]> {
-  let results: UnifiedMessage[] = []
+): Promise<UnifiedRecord[]> {
+  let results: UnifiedRecord[] = []
   let offset: string | undefined = undefined
   while (true) {
     let params: Record<string, string> = { opt_fields: STORY_OPT_FIELDS, limit: "100" }
@@ -81,7 +82,7 @@ async function fetchComments(
     let stories: AsanaStory[] = response.data ?? []
     for (let story of stories) {
       if (story.type !== "comment" && story.resource_subtype !== "comment_added") continue
-      results.push(commentToUnifiedMessage(story, taskGid, taskName))
+      results.push(commentToUnifiedRecord(story, taskGid, taskName, account))
     }
     offset = response.next_page?.offset
     if (!offset) break
@@ -100,7 +101,7 @@ export async function listAsanaMessages(params: {
   includeSubtasks: boolean
   includeComments: boolean
   verbose: boolean
-}): Promise<UnifiedMessage[]> {
+}): Promise<UnifiedRecord[]> {
   let { token } = asanaClient(params.account, params.verbose)
   let projectGids = params.query
     .split(",")
@@ -111,7 +112,7 @@ export async function listAsanaMessages(params: {
     throw new Error("--query must contain at least one Asana project GID")
   }
 
-  let results: UnifiedMessage[] = []
+  let results: UnifiedRecord[] = []
 
   for (let projectGid of projectGids) {
     let offset: string | undefined = undefined
@@ -132,7 +133,7 @@ export async function listAsanaMessages(params: {
         let ts = new Date(task.created_at).getTime()
         if (params.since && ts < new Date(params.since).getTime()) continue
         if (params.until && ts >= new Date(params.until).getTime()) continue
-        results.push(toUnifiedMessage(task))
+        results.push(toUnifiedRecord(task, params.account))
 
         if (params.includeSubtasks) {
           let subtasks = await fetchSubtasks(token.pat, task.gid, params.verbose)
@@ -140,12 +141,12 @@ export async function listAsanaMessages(params: {
             let subTs = new Date(subtask.created_at).getTime()
             if (params.since && subTs < new Date(params.since).getTime()) continue
             if (params.until && subTs >= new Date(params.until).getTime()) continue
-            results.push(toUnifiedMessage(subtask))
+            results.push(toUnifiedRecord(subtask, params.account))
           }
         }
 
         if (params.includeComments) {
-          let comments = await fetchComments(token.pat, task.gid, task.name, params.verbose)
+          let comments = await fetchComments(token.pat, task.gid, task.name, params.account, params.verbose)
           for (let comment of comments) {
             let commentTs = new Date(comment.timestamp).getTime()
             if (params.since && commentTs < new Date(params.since).getTime()) continue
@@ -164,13 +165,13 @@ export async function listAsanaMessages(params: {
 }
 
 export async function fetchAsanaAttachment(
-  msg: UnifiedMessage,
+  row: UnifiedRecord,
   selector: AttachmentSelector,
   account: string,
 ): Promise<Buffer | undefined> {
   let attachment = selector.id
-    ? msg.attachments.find(a => a.id === selector.id)
-    : msg.attachments.filter(a => !selector.filename || a.filename === selector.filename)[selector.index]
+    ? row.attachments.find(a => a.id === selector.id)
+    : row.attachments.filter(a => !selector.filename || a.filename === selector.filename)[selector.index]
   if (!attachment?.url) return undefined
 
   let { token } = asanaClient(account)

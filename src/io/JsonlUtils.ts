@@ -4,7 +4,7 @@ import path from "node:path"
 export function resolveJsonlDest(dest: string | undefined): string {
   let base = path.resolve(dest ?? process.cwd())
   if (path.extname(base) === ".jsonl") return base
-  return path.resolve(base, "messages.jsonl")
+  return path.resolve(base, "records.jsonl")
 }
 
 export function appendJsonl(pathname: string, rows: unknown[]): void {

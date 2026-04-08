@@ -1,9 +1,9 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { toUnifiedMessage } from "../src/platforms/gmail/toUnifiedMessage"
+import { toUnifiedRecord } from "../src/platforms/gmail/toUnifiedRecord"
 
 test("gmail normalization extracts participants and bodies", () => {
-  let row = toUnifiedMessage({
+  let row = toUnifiedRecord({
     id: "m1",
     threadId: "t1",
     internalDate: String(Date.parse("2026-03-20T10:00:00Z")),
@@ -26,12 +26,13 @@ test("gmail normalization extracts participants and bodies", () => {
         },
       ],
     },
-  })
+  }, "default")
 
   assert.equal(row.platform, "gmail")
   assert.equal(row.from?.address, "alice@example.com")
   assert.equal(row.to[0]?.address, "bob@example.com")
   assert.equal(row.cc[0]?.address, "carol@example.com")
   assert.equal(row.bodyText, "hi there")
+  assert.equal(row.kind, "message")
   assert.equal(row.platformMetadata.platform, "gmail")
 })

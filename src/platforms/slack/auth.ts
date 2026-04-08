@@ -17,7 +17,7 @@ import { verboseLog } from "../../Verbose"
 import type { SlackTokenFile } from "./slackClient"
 
 const SLACK_OAUTH_AUTHORIZE_URL = "https://slack.com/oauth/v2/authorize"
-const OAUTH_REDIRECT_URI = "https://tsortwehttam.github.io/msgmon/oauth"
+const OAUTH_REDIRECT_URI = "https://tsortwehttam.github.io/unifiedmirror/oauth"
 const BOT_SCOPES = [
   "channels:history",
   "channels:join",
@@ -161,7 +161,7 @@ export function configureAuthCli(cli: Argv): Argv {
     .help()
 }
 
-export async function parseAuthCli(args: string[], scriptName = "um slack auth"): Promise<void> {
+export async function parseAuthCli(args: string[], scriptName = "unifiedmirror slack auth"): Promise<void> {
   let argv = await configureAuthCli(yargs(args).scriptName(scriptName)).parseAsync()
   let account = typeof argv.account === "string" ? argv.account : DEFAULT_ACCOUNT
   let verbose = argv.verbose === true

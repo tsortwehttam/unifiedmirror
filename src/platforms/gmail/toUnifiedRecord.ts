@@ -1,5 +1,6 @@
 import type { gmail_v1 } from "googleapis"
-import type { Participant, UnifiedAttachment, UnifiedMessage } from "../../types"
+import type { UnifiedAttachment, UnifiedParty, UnifiedRecord } from "../../types"
+import { buildRecordId, dedupeParties, trimSummary } from "../PlatformUtils"
 import { collectAttachments, headerMap, pickBody } from "./GmailMessageHelpers"
 
 function stripHtml(html: string): string {
@@ -21,27 +22,29 @@ function stripHtml(html: string): string {
     .trim()
 }
 
-function parseParticipant(raw: string): Participant {
+function parseParty(raw: string): UnifiedParty {
   let match = raw.match(/^(.+?)\s*<([^>]+)>$/)
   if (match) {
     return {
+      id: undefined,
       name: match[1].trim().replace(/^"|"$/g, ""),
       address: match[2].trim(),
+      role: undefined,
     }
   }
-  return { address: raw.trim(), name: undefined }
+  return { id: undefined, address: raw.trim(), name: undefined, role: undefined }
 }
 
-function parseParticipants(raw: string | undefined): Participant[] {
+function parseParties(raw: string | undefined): UnifiedParty[] {
   if (!raw) return []
   return raw
     .split(",")
     .map(value => value.trim())
     .filter(Boolean)
-    .map(parseParticipant)
+    .map(parseParty)
 }
 
-export function toUnifiedMessage(msg: gmail_v1.Schema$Message): UnifiedMessage {
+export function toUnifiedRecord(msg: gmail_v1.Schema$Message, account: string): UnifiedRecord {
   let headers = headerMap(msg)
   let body = pickBody(msg.payload ?? undefined)
   let attachments: UnifiedAttachment[] = collectAttachments(msg.payload ?? undefined).map(item => ({
@@ -56,20 +59,41 @@ export function toUnifiedMessage(msg: gmail_v1.Schema$Message): UnifiedMessage {
     : headers.date
       ? new Date(headers.date).toISOString()
       : new Date().toISOString()
+  let from = headers.from ? parseParty(headers.from) : undefined
+  let to = parseParties(headers.to)
+  let cc = parseParties(headers.cc)
+  let bcc = parseParties(headers.bcc)
+  let threadId = msg.threadId ? buildRecordId("gmail", account, "message", "thread", msg.threadId) : undefined
 
   return {
-    id: msg.id ?? "",
+    id: buildRecordId("gmail", account, "message", msg.id ?? ""),
+    kind: "message",
     platform: "gmail",
+    account,
     timestamp,
+    timestamps: {
+      created: timestamp,
+      updated: undefined,
+      occurred: timestamp,
+      sent: headers.date ? new Date(headers.date).toISOString() : undefined,
+      received: timestamp,
+    },
     subject: headers.subject,
+    summary: trimSummary(body.text ?? (body.html ? stripHtml(body.html) : undefined)),
     bodyText: body.text ?? (body.html ? stripHtml(body.html) : undefined),
     bodyHtml: body.html,
-    from: headers.from ? parseParticipant(headers.from) : undefined,
-    to: parseParticipants(headers.to),
-    cc: parseParticipants(headers.cc),
-    bcc: parseParticipants(headers.bcc),
+    from,
+    to,
+    cc,
+    bcc,
+    participants: dedupeParties([from, ...to, ...cc, ...bcc]),
     attachments,
-    threadId: msg.threadId ?? undefined,
+    amounts: [],
+    tags: msg.labelIds ?? [],
+    status: undefined,
+    url: undefined,
+    threadId,
+    parentId: undefined,
     platformMetadata: {
       platform: "gmail",
       messageId: msg.id ?? "",

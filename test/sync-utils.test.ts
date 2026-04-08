@@ -4,26 +4,42 @@ import os from "node:os"
 import path from "node:path"
 import test from "node:test"
 import { monthShard, syncJsonl } from "../src/io/SyncUtils"
-import type { UnifiedMessage } from "../src/types"
+import type { UnifiedRecord } from "../src/types"
 
-function makeMessage(params: {
+function makeRecord(params: {
   id: string
   timestamp: string
   subject: string
-}): UnifiedMessage {
+}): UnifiedRecord {
   return {
-    id: params.id,
+    id: `gmail:default:message:${params.id}`,
+    kind: "message",
     platform: "gmail",
+    account: "default",
     timestamp: params.timestamp,
+    timestamps: {
+      created: params.timestamp,
+      updated: undefined,
+      occurred: params.timestamp,
+      sent: params.timestamp,
+      received: params.timestamp,
+    },
     subject: params.subject,
+    summary: params.subject,
     bodyText: params.subject,
     bodyHtml: undefined,
     from: undefined,
     to: [],
     cc: [],
     bcc: [],
+    participants: [],
     attachments: [],
+    amounts: [],
+    tags: [],
+    status: undefined,
+    url: undefined,
     threadId: undefined,
+    parentId: undefined,
     platformMetadata: {
       platform: "gmail",
       messageId: params.id,
@@ -40,17 +56,18 @@ test("monthShard buckets timestamps by UTC month", () => {
 })
 
 test("syncJsonl merges by id, sorts by timestamp, and writes manifests per month", () => {
-  let dir = fs.mkdtempSync(path.join(os.tmpdir(), "um-sync-"))
+  let dir = fs.mkdtempSync(path.join(os.tmpdir(), "unifiedmirror-sync-"))
 
   let first = syncJsonl({
     rows: [
-      makeMessage({ id: "b", timestamp: "2026-04-02T00:00:00Z", subject: "second" }),
-      makeMessage({ id: "a", timestamp: "2026-04-01T00:00:00Z", subject: "first" }),
-      makeMessage({ id: "m", timestamp: "2026-03-31T23:59:59Z", subject: "march" }),
+      makeRecord({ id: "b", timestamp: "2026-04-02T00:00:00Z", subject: "second" }),
+      makeRecord({ id: "a", timestamp: "2026-04-01T00:00:00Z", subject: "first" }),
+      makeRecord({ id: "m", timestamp: "2026-03-31T23:59:59Z", subject: "march" }),
     ],
     destRoot: dir,
     platform: "gmail",
     account: "default",
+    kinds: ["message"],
     query: "q1",
     preset: "primary-like",
     since: "2026-03-01T00:00:00Z",
@@ -58,26 +75,27 @@ test("syncJsonl merges by id, sorts by timestamp, and writes manifests per month
     shard: "month",
     mergeBy: "id",
     sortBy: "timestamp",
-    includeThreadReplies: undefined,
+    options: {},
   })
 
   assert.equal(first.length, 2)
-  let aprilPath = path.join(dir, "2026-04", "messages.jsonl")
+  let aprilPath = path.join(dir, "2026-04", "records.jsonl")
   let aprilRows = fs
     .readFileSync(aprilPath, "utf8")
     .trim()
     .split("\n")
-    .map(line => JSON.parse(line) as UnifiedMessage)
+    .map(line => JSON.parse(line) as UnifiedRecord)
   assert.deepEqual(
     aprilRows.map(row => row.id),
-    ["a", "b"],
+    ["gmail:default:message:a", "gmail:default:message:b"],
   )
 
   syncJsonl({
-    rows: [makeMessage({ id: "a", timestamp: "2026-04-03T00:00:00Z", subject: "updated" })],
+    rows: [makeRecord({ id: "a", timestamp: "2026-04-03T00:00:00Z", subject: "updated" })],
     destRoot: dir,
     platform: "gmail",
     account: "default",
+    kinds: ["message"],
     query: "q2",
     preset: undefined,
     since: "2026-04-01T00:00:00Z",
@@ -85,17 +103,17 @@ test("syncJsonl merges by id, sorts by timestamp, and writes manifests per month
     shard: "month",
     mergeBy: "id",
     sortBy: "timestamp",
-    includeThreadReplies: undefined,
+    options: {},
   })
 
   let updatedAprilRows = fs
     .readFileSync(aprilPath, "utf8")
     .trim()
     .split("\n")
-    .map(line => JSON.parse(line) as UnifiedMessage)
+    .map(line => JSON.parse(line) as UnifiedRecord)
   assert.deepEqual(
     updatedAprilRows.map(row => `${row.id}:${row.subject}`),
-    ["b:second", "a:updated"],
+    ["gmail:default:message:b:second", "gmail:default:message:a:updated"],
   )
 
   let meta = JSON.parse(fs.readFileSync(path.join(dir, "2026-04", "meta.json"), "utf8")) as {
@@ -103,9 +121,11 @@ test("syncJsonl merges by id, sorts by timestamp, and writes manifests per month
     query: string
     firstTimestamp: string
     lastTimestamp: string
+    kinds: string[]
   }
   assert.equal(meta.rowCount, 2)
   assert.equal(meta.query, "q2")
   assert.equal(meta.firstTimestamp, "2026-04-02T00:00:00Z")
   assert.equal(meta.lastTimestamp, "2026-04-03T00:00:00Z")
+  assert.deepEqual(meta.kinds, ["message"])
 })
