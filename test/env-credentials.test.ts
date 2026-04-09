@@ -4,6 +4,7 @@ import {
   getGmailCredentialsFromEnv,
   getGmailTokenFromEnv,
   getMessagesConfigFromEnv,
+  getShopifyCredentialsFromEnv,
   getShopifyTokenFromEnv,
   getSlackCredentialsFromEnv,
   getSlackTokenFromEnv,
@@ -135,10 +136,66 @@ test("getShopifyTokenFromEnv returns token when both set", () => {
   })
 })
 
-test("getShopifyTokenFromEnv throws on partial config", () => {
+test("getShopifyTokenFromEnv returns undefined when no access token is set", () => {
   withEnv({ UNIFIEDMIRROR_SHOPIFY_SHOP: "store.myshopify.com", UNIFIEDMIRROR_SHOPIFY_ACCESS_TOKEN: undefined }, () => {
-    assert.throws(() => getShopifyTokenFromEnv(), /UNIFIEDMIRROR_SHOPIFY_ACCESS_TOKEN/)
+    assert.equal(getShopifyTokenFromEnv(), undefined)
   })
+})
+
+test("getShopifyCredentialsFromEnv returns undefined when no vars set", () => {
+  withEnv(
+    {
+      UNIFIEDMIRROR_SHOPIFY_SHOP: undefined,
+      UNIFIEDMIRROR_SHOPIFY_CLIENT_ID: undefined,
+      UNIFIEDMIRROR_SHOPIFY_CLIENT_SECRET: undefined,
+    },
+    () => {
+      assert.equal(getShopifyCredentialsFromEnv(), undefined)
+    },
+  )
+})
+
+test("getShopifyCredentialsFromEnv returns credentials when all vars set", () => {
+  withEnv(
+    {
+      UNIFIEDMIRROR_SHOPIFY_SHOP: "store.myshopify.com",
+      UNIFIEDMIRROR_SHOPIFY_CLIENT_ID: "cid_123",
+      UNIFIEDMIRROR_SHOPIFY_CLIENT_SECRET: "csec_123",
+    },
+    () => {
+      assert.deepEqual(getShopifyCredentialsFromEnv(), {
+        shop: "store.myshopify.com",
+        client_id: "cid_123",
+        client_secret: "csec_123",
+      })
+    },
+  )
+})
+
+test("getShopifyCredentialsFromEnv throws when shop is missing", () => {
+  withEnv(
+    {
+      UNIFIEDMIRROR_SHOPIFY_SHOP: undefined,
+      UNIFIEDMIRROR_SHOPIFY_CLIENT_ID: "cid_123",
+      UNIFIEDMIRROR_SHOPIFY_CLIENT_SECRET: "csec_123",
+    },
+    () => {
+      assert.throws(() => getShopifyCredentialsFromEnv(), /UNIFIEDMIRROR_SHOPIFY_SHOP/)
+    },
+  )
+})
+
+test("getShopifyCredentialsFromEnv throws on partial credential config", () => {
+  withEnv(
+    {
+      UNIFIEDMIRROR_SHOPIFY_SHOP: "store.myshopify.com",
+      UNIFIEDMIRROR_SHOPIFY_CLIENT_ID: "cid_123",
+      UNIFIEDMIRROR_SHOPIFY_CLIENT_SECRET: undefined,
+    },
+    () => {
+      assert.throws(() => getShopifyCredentialsFromEnv(), /UNIFIEDMIRROR_SHOPIFY_CLIENT_SECRET/)
+    },
+  )
 })
 
 // Messages config

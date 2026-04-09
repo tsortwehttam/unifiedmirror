@@ -73,11 +73,32 @@ export function getShopifyTokenFromEnv(): {
 } | undefined {
   let shop = env("UNIFIEDMIRROR_SHOPIFY_SHOP")
   let accessToken = env("UNIFIEDMIRROR_SHOPIFY_ACCESS_TOKEN")
-  if (!shop && !accessToken) return undefined
+  if (!accessToken) return undefined
   requirePair("UNIFIEDMIRROR_SHOPIFY_SHOP", "UNIFIEDMIRROR_SHOPIFY_ACCESS_TOKEN")
   return {
     shop: shop!,
     access_token: accessToken!,
+  }
+}
+
+export function getShopifyCredentialsFromEnv(): {
+  shop: string
+  client_id: string
+  client_secret: string
+} | undefined {
+  let shop = env("UNIFIEDMIRROR_SHOPIFY_SHOP")
+  let clientId = env("UNIFIEDMIRROR_SHOPIFY_CLIENT_ID")
+  let clientSecret = env("UNIFIEDMIRROR_SHOPIFY_CLIENT_SECRET")
+  if (!shop && !clientId && !clientSecret) return undefined
+  requirePair("UNIFIEDMIRROR_SHOPIFY_CLIENT_ID", "UNIFIEDMIRROR_SHOPIFY_CLIENT_SECRET")
+  if (!shop) {
+    throw new Error("Partial env config: UNIFIEDMIRROR_SHOPIFY_SHOP must be set when Shopify credentials are set")
+  }
+  if (!clientId || !clientSecret) return undefined
+  return {
+    shop,
+    client_id: clientId,
+    client_secret: clientSecret,
   }
 }
 

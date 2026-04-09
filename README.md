@@ -84,14 +84,19 @@ export UNIFIEDMIRROR_ASANA_WORKSPACE_GID=...
 
 ### Shopify
 
-Shopify uses a private or custom app Admin API access token with order-read scopes.
+Shopify supports either a static Admin API token or a Dev Dashboard app that exchanges client credentials for a short-lived Admin API token at runtime.
 
 ```bash
 # Option A: env vars
 export UNIFIEDMIRROR_SHOPIFY_SHOP=store.myshopify.com
 export UNIFIEDMIRROR_SHOPIFY_ACCESS_TOKEN=shpat_...
 
-# Option B: account file
+# Option B: env vars for Dev Dashboard apps
+export UNIFIEDMIRROR_SHOPIFY_SHOP=store.myshopify.com
+export UNIFIEDMIRROR_SHOPIFY_CLIENT_ID=...
+export UNIFIEDMIRROR_SHOPIFY_CLIENT_SECRET=...
+
+# Option C: account file
 #   Put JSON at .unifiedmirror/shopify/tokens/store.json:
 #   {"shop":"store.myshopify.com","access_token":"shpat_..."}
 ```
@@ -117,6 +122,8 @@ export UNIFIEDMIRROR_SHOPIFY_ACCESS_TOKEN=shpat_...
 | `UNIFIEDMIRROR_ASANA_WORKSPACE_GID` | Asana workspace GID |
 | `UNIFIEDMIRROR_SHOPIFY_SHOP` | Shopify shop domain, like `store.myshopify.com` |
 | `UNIFIEDMIRROR_SHOPIFY_ACCESS_TOKEN` | Shopify Admin API access token |
+| `UNIFIEDMIRROR_SHOPIFY_CLIENT_ID` | Shopify Dev Dashboard client ID |
+| `UNIFIEDMIRROR_SHOPIFY_CLIENT_SECRET` | Shopify Dev Dashboard client secret |
 
 ## Record shape
 

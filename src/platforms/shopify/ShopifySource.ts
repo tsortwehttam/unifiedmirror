@@ -85,7 +85,7 @@ export async function listShopifyOrders(params: {
   verbose: boolean
   onBatch: ((rows: UnifiedRecord[]) => Promise<void>) | undefined
 }): Promise<UnifiedRecord[]> {
-  let { token } = shopifyClient(params.account, params.verbose)
+  let { token } = await shopifyClient(params.account, params.verbose)
   let out: UnifiedRecord[] = []
   let after: string | undefined = undefined
 
