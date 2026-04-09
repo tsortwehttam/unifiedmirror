@@ -75,6 +75,14 @@ function withinBounds(value: string, since: string | undefined, until: string | 
   return true
 }
 
+export function buildShopifyQuery(query: string, since: string | undefined, until: string | undefined): string | undefined {
+  let parts = [query.trim()]
+  if (since) parts.push(`created_at:>=${since}`)
+  if (until) parts.push(`created_at:<${until}`)
+  let out = parts.filter(Boolean).join(" ")
+  return out || undefined
+}
+
 export async function listShopifyOrders(params: {
   account: string
   query: string
@@ -88,6 +96,7 @@ export async function listShopifyOrders(params: {
   let { token } = await shopifyClient(params.account, params.verbose)
   let out: UnifiedRecord[] = []
   let after: string | undefined = undefined
+  let query = buildShopifyQuery(params.query, params.since, params.until)
 
   while (out.length < params.maxResults) {
     let data: ShopifyOrdersResponse = await shopifyGraphql<ShopifyOrdersResponse>({
@@ -97,7 +106,7 @@ export async function listShopifyOrders(params: {
       variables: {
         first: Math.min(50, params.maxResults - out.length),
         after,
-        query: params.query || undefined,
+        query,
       },
       verbose: params.verbose,
     })
