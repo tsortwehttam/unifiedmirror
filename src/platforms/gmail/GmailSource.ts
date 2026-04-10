@@ -3,7 +3,7 @@ import { verboseLog } from "../../Verbose"
 import { collectAttachments } from "./GmailMessageHelpers"
 import { gmailClient } from "./GmailClient"
 import { resolveGmailQuery } from "./GmailQueryPresets"
-import { toUnifiedRecord } from "./toUnifiedRecord"
+import { isCalendarInviteSubject, toUnifiedRecord } from "./toUnifiedRecord"
 
 function parseTime(value: string | undefined): number | undefined {
   if (!value) return undefined
@@ -79,6 +79,7 @@ export async function listGmailMessages(params: {
         format: "full",
       })
       let row = toUnifiedRecord(fetched.data, params.account)
+      if (isCalendarInviteSubject(row.subject)) continue
       let time = Date.parse(row.timestamp)
       if (since != null && time < since) continue
       if (until != null && time > until) continue

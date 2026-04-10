@@ -22,6 +22,29 @@ function stripHtml(html: string): string {
     .trim()
 }
 
+export function stripQuotedReply(text: string): string {
+  let lines = text.split("\n")
+  for (let i = 0; i < lines.length; i++) {
+    if (/^On .{10,200}wrote:\s*$/.test(lines[i])) {
+      return lines.slice(0, i).join("\n").trimEnd()
+    }
+    let trimmed = lines[i].trim()
+    if (trimmed.length >= 20 && /^_+$/.test(trimmed)) {
+      for (let j = i + 1; j < Math.min(i + 4, lines.length); j++) {
+        if (lines[j].trim().startsWith("From:")) {
+          return lines.slice(0, i).join("\n").trimEnd()
+        }
+      }
+    }
+  }
+  return text
+}
+
+export function isCalendarInviteSubject(subject: string | undefined): boolean {
+  if (!subject) return false
+  return /^(Accepted|Declined|Tentative|Updated invitation|Invitation|Canceled):/i.test(subject)
+}
+
 function parseParty(raw: string): UnifiedParty {
   let match = raw.match(/^(.+?)\s*<([^>]+)>$/)
   if (match) {
@@ -64,6 +87,8 @@ export function toUnifiedRecord(msg: gmail_v1.Schema$Message, account: string): 
   let cc = parseParties(headers.cc)
   let bcc = parseParties(headers.bcc)
   let threadId = msg.threadId ? buildRecordId("gmail", account, "message", "thread", msg.threadId) : undefined
+  let rawBody = body.text ?? (body.html ? stripHtml(body.html) : undefined)
+  let bodyText = rawBody ? stripQuotedReply(rawBody) : undefined
 
   return {
     id: buildRecordId("gmail", account, "message", msg.id ?? ""),
@@ -79,9 +104,9 @@ export function toUnifiedRecord(msg: gmail_v1.Schema$Message, account: string): 
       received: timestamp,
     },
     subject: headers.subject,
-    summary: trimSummary(body.text ?? (body.html ? stripHtml(body.html) : undefined)),
-    bodyText: body.text ?? (body.html ? stripHtml(body.html) : undefined),
-    bodyHtml: body.html,
+    summary: trimSummary(bodyText),
+    bodyText,
+    bodyHtml: undefined,
     from,
     to,
     cc,
