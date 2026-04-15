@@ -28,6 +28,20 @@ function toPlatformArg(value: unknown): Platform {
   throw new Error(`Unknown platform "${platform}"`)
 }
 
+const QUERY_ENV_FALLBACK: Partial<Record<Platform, string>> = {
+  asana: "UNIFIEDMIRROR_ASANA_PROJECT_GIDS",
+  shopify: "UNIFIEDMIRROR_SHOPIFY_QUERY",
+  slack: "UNIFIEDMIRROR_SLACK_CHANNELS",
+}
+
+function resolveQuery(platform: Platform, raw: unknown): string {
+  let value = toStringArg(raw).trim()
+  if (value) return value
+  let envKey = QUERY_ENV_FALLBACK[platform]
+  if (!envKey) return ""
+  return (process.env[envKey] ?? "").trim()
+}
+
 function toCamelCase(value: string): string {
   return value.replace(/-([a-z])/g, (_, char: string) => char.toUpperCase())
 }
@@ -138,7 +152,7 @@ cli = cli.command(
     let rows = await pullRows({
       platform,
       account: toStringArg(argv.account),
-      query: toStringArg(argv.query),
+      query: resolveQuery(platform, argv.query),
       preset: toMaybeStringArg(argv.preset),
       since: toMaybeStringArg(argv.since),
       until: toMaybeStringArg(argv.until),
@@ -184,7 +198,7 @@ cli = cli.command(
     let options = toAdapterOptions(platform, argv as Record<string, unknown>)
     let destRoot = toStringArg(argv.destRoot)
     let account = toStringArg(argv.account)
-    let query = toStringArg(argv.query)
+    let query = resolveQuery(platform, argv.query)
     let preset = toMaybeStringArg(argv.preset)
     let since = toMaybeStringArg(argv.since)
     let until = toMaybeStringArg(argv.until)

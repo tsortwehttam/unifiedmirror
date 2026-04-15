@@ -43,7 +43,7 @@ async function resolveChannelIds(
       out.push({ id: query, name: query })
       continue
     }
-    throw new Error(`Cannot resolve channel "${query}"`)
+    console.warn(`[unifiedmirror] slack: skipping missing channel "${query}"`)
   }
   return out
 }
