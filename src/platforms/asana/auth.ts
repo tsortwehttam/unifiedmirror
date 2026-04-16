@@ -9,6 +9,19 @@ import {
 import { verboseLog } from "../../Verbose"
 import { asanaFetch, type AsanaTokenFile } from "./asanaClient"
 
+type AsanaWorkspace = {
+  gid: string
+  name: string
+}
+
+type AsanaMe = {
+  data: {
+    name: string
+    email: string
+    workspaces: AsanaWorkspace[] | undefined
+  }
+}
+
 export function configureAuthCli(cli: Argv): Argv {
   return cli
     .option("account", {
@@ -41,9 +54,9 @@ export async function parseAuthCli(args: string[], scriptName = "unifiedmirror a
   }
   if (!pat) throw new Error("No token provided. Pass --token or pipe to stdin.")
 
-  let me = await asanaFetch(pat, "/users/me", undefined, verbose)
+  let me = await asanaFetch<AsanaMe>(pat, "/users/me", undefined, verbose)
   let user = me.data
-  let workspaces: Array<{ gid: string; name: string }> = user.workspaces ?? []
+  let workspaces: AsanaWorkspace[] = user.workspaces ?? []
   let workspace = workspaces[0]
 
   let tokenDir = resolveTokenWriteDir("asana")

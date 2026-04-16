@@ -9,6 +9,11 @@ export type AsanaTokenFile = {
   workspace_name: string | undefined
 }
 
+export type AsanaPage<T> = {
+  data: T[]
+  next_page: { offset: string } | undefined
+}
+
 const ASANA_BASE = "https://app.asana.com/api/1.0"
 
 export function loadAsanaTokenFile(account: string): AsanaTokenFile {
@@ -31,12 +36,26 @@ export function asanaClient(account: string, verbose = false): { token: AsanaTok
   return { token }
 }
 
-export async function asanaFetch(
+export async function asanaFetch<T>(
   pat: string,
   path: string,
   params?: Record<string, string>,
   verbose = false,
-): Promise<any> {
+): Promise<T> {
+  let value = await asanaFetchOptional<T>(pat, path, params, [], verbose)
+  if (value === undefined) {
+    throw new Error(`Asana API request unexpectedly returned no data for ${path}`)
+  }
+  return value
+}
+
+export async function asanaFetchOptional<T>(
+  pat: string,
+  path: string,
+  params: Record<string, string> | undefined,
+  skipStatuses: number[],
+  verbose = false,
+): Promise<T | undefined> {
   let url = new URL(`${ASANA_BASE}${path}`)
   if (params) {
     for (let [key, value] of Object.entries(params)) {
@@ -49,17 +68,21 @@ export async function asanaFetch(
   })
   if (!response.ok) {
     let body = await response.text()
+    if (skipStatuses.includes(response.status)) {
+      verboseLog(verbose, "asana skip", { path, status: response.status, body })
+      return undefined
+    }
     throw new Error(`Asana API ${response.status}: ${body}`)
   }
   return response.json()
 }
 
-export async function asanaPost(
+export async function asanaPost<T>(
   pat: string,
   path: string,
   body: Record<string, unknown>,
   verbose = false,
-): Promise<any> {
+): Promise<T> {
   let url = `${ASANA_BASE}${path}`
   verboseLog(verbose, "asana post", { url, body })
   let response = await fetch(url, {

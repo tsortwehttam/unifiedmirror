@@ -1,6 +1,6 @@
 import type { AttachmentSelector, UnifiedRecord } from "../../types"
 import { verboseLog } from "../../Verbose"
-import { asanaClient, asanaFetch } from "./asanaClient"
+import { asanaClient, asanaFetch, asanaFetchOptional, type AsanaPage } from "./asanaClient"
 import { toUnifiedRecord, commentToUnifiedRecord, type AsanaTask, type AsanaStory } from "./toUnifiedRecord"
 
 const TASK_OPT_FIELDS = [
@@ -56,7 +56,7 @@ async function fetchSubtasks(
   while (true) {
     let params: Record<string, string> = { opt_fields: TASK_OPT_FIELDS, limit: "100" }
     if (offset) params.offset = offset
-    let response = await asanaFetch(pat, `/tasks/${taskGid}/subtasks`, params, verbose)
+    let response = await asanaFetch<AsanaPage<AsanaTask>>(pat, `/tasks/${taskGid}/subtasks`, params, verbose)
     let batch: AsanaTask[] = response.data ?? []
     subtasks.push(...batch)
     offset = response.next_page?.offset
@@ -78,7 +78,7 @@ async function fetchComments(
   while (true) {
     let params: Record<string, string> = { opt_fields: STORY_OPT_FIELDS, limit: "100" }
     if (offset) params.offset = offset
-    let response = await asanaFetch(pat, `/tasks/${taskGid}/stories`, params, verbose)
+    let response = await asanaFetch<AsanaPage<AsanaStory>>(pat, `/tasks/${taskGid}/stories`, params, verbose)
     let stories: AsanaStory[] = response.data ?? []
     for (let story of stories) {
       if (story.type !== "comment" && story.resource_subtype !== "comment_added") continue
@@ -125,7 +125,17 @@ export async function listAsanaMessages(params: {
       if (params.since) fetchParams.completed_since = params.since
       if (offset) fetchParams.offset = offset
 
-      let response = await asanaFetch(token.pat, `/projects/${projectGid}/tasks`, fetchParams, params.verbose)
+      let response = await asanaFetchOptional<AsanaPage<AsanaTask>>(
+        token.pat,
+        `/projects/${projectGid}/tasks`,
+        fetchParams,
+        [404],
+        params.verbose,
+      )
+      if (!response) {
+        verboseLog(params.verbose, "asana project missing", { projectGid })
+        break
+      }
       let tasks: AsanaTask[] = response.data ?? []
       verboseLog(params.verbose, "asana tasks fetched", { projectGid, count: tasks.length })
 
