@@ -182,7 +182,7 @@ With `--shard month`, `unifiedmirror` writes:
 The sync path merges by record `id`, replaces older copies on collision, and sorts by timestamp.
 During long syncs, shard files and manifests are updated incrementally as batches arrive so partial progress survives interruption.
 
-For Asana, `--current-state` is the mode to use when you want a full project re-sync that refreshes existing task rows in place. In that mode the adapter re-reads every task plus optional comments/subtasks for the requested project GIDs, ignores `--since`, `--until`, and `--max-results`, and relies on `sync --merge-by id` to replace older local copies while leaving locally mirrored rows for deleted remote tasks untouched.
+For Asana, `--current-state` is the mode to use when you want a full project re-sync that refreshes existing task rows in place. In that mode the adapter re-reads every task plus optional comments/subtasks for the requested project GIDs, ignores `--max-results`, and relies on `sync --merge-by id` to replace older local copies while leaving locally mirrored rows for deleted remote tasks untouched. If `--since` or `--until` is also provided, the current-state results are filtered locally by task `modified_at` (falling back to `created_at` for rows without `modified_at`) so you can bound the re-sync to recently changed work.
 
 ## Presets
 

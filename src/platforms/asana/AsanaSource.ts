@@ -92,6 +92,16 @@ async function fetchComments(
   return results
 }
 
+function calcTaskWindowTime(task: AsanaTask): number {
+  return new Date(task.modified_at ?? task.created_at).getTime()
+}
+
+function isWithinWindow(ts: number, sinceTime: number | undefined, untilTime: number | undefined): boolean {
+  if (sinceTime !== undefined && ts < sinceTime) return false
+  if (untilTime !== undefined && ts >= untilTime) return false
+  return true
+}
+
 export async function listAsanaMessages(params: {
   account: string
   query: string
@@ -116,7 +126,6 @@ export async function listAsanaMessages(params: {
   }
 
   let results: UnifiedRecord[] = []
-  let shouldFilterByWindow = !params.currentState
   let sinceTime = params.since ? new Date(params.since).getTime() : undefined
   let untilTime = params.until ? new Date(params.until).getTime() : undefined
 
@@ -147,9 +156,7 @@ export async function listAsanaMessages(params: {
       let batch: UnifiedRecord[] = []
       for (let task of tasks) {
         if (!params.currentState && results.length >= params.maxResults) break
-        let ts = new Date(task.created_at).getTime()
-        if (shouldFilterByWindow && sinceTime !== undefined && ts < sinceTime) continue
-        if (shouldFilterByWindow && untilTime !== undefined && ts >= untilTime) continue
+        if (!isWithinWindow(calcTaskWindowTime(task), sinceTime, untilTime)) continue
         let row = toUnifiedRecord(task, params.account)
         results.push(row)
         batch.push(row)
@@ -157,9 +164,7 @@ export async function listAsanaMessages(params: {
         if (params.includeSubtasks) {
           let subtasks = await fetchSubtasks(token.pat, task.gid, params.verbose)
           for (let subtask of subtasks) {
-            let subTs = new Date(subtask.created_at).getTime()
-            if (shouldFilterByWindow && sinceTime !== undefined && subTs < sinceTime) continue
-            if (shouldFilterByWindow && untilTime !== undefined && subTs >= untilTime) continue
+            if (!isWithinWindow(calcTaskWindowTime(subtask), sinceTime, untilTime)) continue
             let row = toUnifiedRecord(subtask, params.account)
             results.push(row)
             batch.push(row)
@@ -170,8 +175,7 @@ export async function listAsanaMessages(params: {
           let comments = await fetchComments(token.pat, task.gid, task.name, params.account, params.verbose)
           for (let comment of comments) {
             let commentTs = new Date(comment.timestamp).getTime()
-            if (shouldFilterByWindow && sinceTime !== undefined && commentTs < sinceTime) continue
-            if (shouldFilterByWindow && untilTime !== undefined && commentTs >= untilTime) continue
+            if (!isWithinWindow(commentTs, sinceTime, untilTime)) continue
             results.push(comment)
             batch.push(comment)
           }

@@ -44,7 +44,7 @@ export const asanaAdapter: PlatformAdapter = {
       type: "boolean",
       default: false,
       choices: [],
-      describe: "Asana only. Re-read each project's full current task/comment state and ignore --since, --until, and --max-results.",
+      describe: "Asana only. Re-read each project's full current task/comment state, ignore --max-results, and apply any --since/--until window locally using task modified_at.",
     },
   ],
 }

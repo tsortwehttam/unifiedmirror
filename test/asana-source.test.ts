@@ -2,14 +2,20 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import { listAsanaMessages } from "../src/platforms/asana/AsanaSource"
 
-function buildTask(gid: string, name: string, createdAt: string, projectGid: string) {
+function buildTask(
+  gid: string,
+  name: string,
+  createdAt: string,
+  projectGid: string,
+  modifiedAt = "2026-04-16T00:00:00.000Z",
+) {
   return {
     gid,
     name,
     notes: `${name} notes`,
     html_notes: `<body>${name} notes</body>`,
     created_at: createdAt,
-    modified_at: "2026-04-16T00:00:00.000Z",
+    modified_at: modifiedAt,
     created_by: { gid: "user-1", name: "User 1" },
     assignee: undefined,
     followers: [],
@@ -113,7 +119,7 @@ test("listAsanaMessages skips missing projects and continues", async t => {
   assert.equal(urls.some(url => url.includes("/projects/project-b/tasks")), true)
 })
 
-test("listAsanaMessages currentState ignores since and maxResults for tasks", async t => {
+test("listAsanaMessages currentState honors since locally using modified_at and still ignores maxResults", async t => {
   let oldFetch = global.fetch
   let oldPat = process.env.UNIFIEDMIRROR_ASANA_PAT
   let oldWorkspace = process.env.UNIFIEDMIRROR_ASANA_WORKSPACE_GID
@@ -132,7 +138,7 @@ test("listAsanaMessages currentState ignores since and maxResults for tasks", as
         JSON.stringify({
           data: [
             buildTask("task-a", "Task A", "2026-04-01T00:00:00.000Z", "project-a"),
-            buildTask("task-b", "Task B", "2026-04-02T00:00:00.000Z", "project-a"),
+            buildTask("task-b", "Task B", "2026-04-02T00:00:00.000Z", "project-a", "2026-04-10T00:00:00.000Z"),
           ],
           next_page: undefined,
         }),
@@ -181,7 +187,7 @@ test("listAsanaMessages currentState ignores since and maxResults for tasks", as
 
   assert.deepEqual(
     rows.map(row => row.subject),
-    ["Task A", "Task B"],
+    ["Task A"],
   )
   assert.equal(rows[0]?.timestamps.updated, "2026-04-16T00:00:00.000Z")
   assert.equal(
