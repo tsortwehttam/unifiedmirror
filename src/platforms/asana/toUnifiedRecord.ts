@@ -33,6 +33,7 @@ export type AsanaTask = {
   notes: string | undefined
   html_notes: string | undefined
   created_at: string
+  modified_at: string | undefined
   created_by: AsanaUser | undefined
   assignee: AsanaUser | undefined
   followers: AsanaUser[]
@@ -109,7 +110,7 @@ export function toUnifiedRecord(task: AsanaTask, account: string): UnifiedRecord
     timestamp: task.created_at,
     timestamps: {
       created: task.created_at,
-      updated: undefined,
+      updated: task.modified_at,
       occurred: task.created_at,
       sent: undefined,
       received: undefined,

@@ -171,6 +171,7 @@ Use `sync` when you want deterministic merge and dedupe behavior for a local mir
 yarn unifiedmirror sync --platform gmail --account default --preset primary-like --since 2026-03-01T00:00:00Z --until 2026-04-06T23:59:59Z --dest-root ./mirror/gmail/default --shard month --merge-by id --sort-by timestamp
 yarn unifiedmirror sync --platform slack --account default --query '#founders,#production' --since 2026-03-01T00:00:00Z --until 2026-04-06T23:59:59Z --dest-root ./mirror/slack/default --shard month --merge-by id --sort-by timestamp --include-thread-replies
 yarn unifiedmirror sync --platform shopify --account store --query 'financial_status:paid' --since 2026-03-01T00:00:00Z --until 2026-04-06T23:59:59Z --dest-root ./mirror/shopify/store --shard month --merge-by id --sort-by timestamp
+yarn unifiedmirror sync --platform asana --account work --query '1200000000000001,1200000000000002' --dest-root ./mirror/asana/work --shard month --merge-by id --sort-by timestamp --current-state
 ```
 
 With `--shard month`, `unifiedmirror` writes:
@@ -180,6 +181,8 @@ With `--shard month`, `unifiedmirror` writes:
 
 The sync path merges by record `id`, replaces older copies on collision, and sorts by timestamp.
 During long syncs, shard files and manifests are updated incrementally as batches arrive so partial progress survives interruption.
+
+For Asana, `--current-state` is the mode to use when you want a full project re-sync that refreshes existing task rows in place. In that mode the adapter re-reads every task plus optional comments/subtasks for the requested project GIDs, ignores `--since`, `--until`, and `--max-results`, and relies on `sync --merge-by id` to replace older local copies while leaving locally mirrored rows for deleted remote tasks untouched.
 
 ## Presets
 

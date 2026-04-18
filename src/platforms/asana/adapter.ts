@@ -14,6 +14,7 @@ export const asanaAdapter: PlatformAdapter = {
       since: params.since,
       until: params.until,
       maxResults: params.maxResults,
+      currentState: params.options.currentState === true,
       includeSubtasks: params.options.includeSubtasks !== false,
       includeComments: params.options.includeComments !== false,
       verbose: params.verbose,
@@ -37,6 +38,13 @@ export const asanaAdapter: PlatformAdapter = {
       default: true,
       choices: [],
       describe: "Asana only. Include comments for each task.",
+    },
+    {
+      name: "current-state",
+      type: "boolean",
+      default: false,
+      choices: [],
+      describe: "Asana only. Re-read each project's full current task/comment state and ignore --since, --until, and --max-results.",
     },
   ],
 }

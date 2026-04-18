@@ -9,6 +9,7 @@ const TASK_OPT_FIELDS = [
   "notes",
   "html_notes",
   "created_at",
+  "modified_at",
   "created_by.gid",
   "created_by.name",
   "assignee.gid",
@@ -98,6 +99,7 @@ export async function listAsanaMessages(params: {
   since: string | undefined
   until: string | undefined
   maxResults: number
+  currentState: boolean
   includeSubtasks: boolean
   includeComments: boolean
   verbose: boolean
@@ -114,15 +116,18 @@ export async function listAsanaMessages(params: {
   }
 
   let results: UnifiedRecord[] = []
+  let shouldFilterByWindow = !params.currentState
+  let sinceTime = params.since ? new Date(params.since).getTime() : undefined
+  let untilTime = params.until ? new Date(params.until).getTime() : undefined
 
   for (let projectGid of projectGids) {
     let offset: string | undefined = undefined
-    while (results.length < params.maxResults) {
+    while (params.currentState || results.length < params.maxResults) {
       let fetchParams: Record<string, string> = {
         opt_fields: TASK_OPT_FIELDS,
-        limit: String(Math.min(100, params.maxResults - results.length)),
+        limit: String(params.currentState ? 100 : Math.min(100, params.maxResults - results.length)),
       }
-      if (params.since) fetchParams.completed_since = params.since
+      if (params.since && !params.currentState) fetchParams.completed_since = params.since
       if (offset) fetchParams.offset = offset
 
       let response = await asanaFetchOptional<AsanaPage<AsanaTask>>(
@@ -141,10 +146,10 @@ export async function listAsanaMessages(params: {
 
       let batch: UnifiedRecord[] = []
       for (let task of tasks) {
-        if (results.length >= params.maxResults) break
+        if (!params.currentState && results.length >= params.maxResults) break
         let ts = new Date(task.created_at).getTime()
-        if (params.since && ts < new Date(params.since).getTime()) continue
-        if (params.until && ts >= new Date(params.until).getTime()) continue
+        if (shouldFilterByWindow && sinceTime !== undefined && ts < sinceTime) continue
+        if (shouldFilterByWindow && untilTime !== undefined && ts >= untilTime) continue
         let row = toUnifiedRecord(task, params.account)
         results.push(row)
         batch.push(row)
@@ -153,8 +158,8 @@ export async function listAsanaMessages(params: {
           let subtasks = await fetchSubtasks(token.pat, task.gid, params.verbose)
           for (let subtask of subtasks) {
             let subTs = new Date(subtask.created_at).getTime()
-            if (params.since && subTs < new Date(params.since).getTime()) continue
-            if (params.until && subTs >= new Date(params.until).getTime()) continue
+            if (shouldFilterByWindow && sinceTime !== undefined && subTs < sinceTime) continue
+            if (shouldFilterByWindow && untilTime !== undefined && subTs >= untilTime) continue
             let row = toUnifiedRecord(subtask, params.account)
             results.push(row)
             batch.push(row)
@@ -165,8 +170,8 @@ export async function listAsanaMessages(params: {
           let comments = await fetchComments(token.pat, task.gid, task.name, params.account, params.verbose)
           for (let comment of comments) {
             let commentTs = new Date(comment.timestamp).getTime()
-            if (params.since && commentTs < new Date(params.since).getTime()) continue
-            if (params.until && commentTs >= new Date(params.until).getTime()) continue
+            if (shouldFilterByWindow && sinceTime !== undefined && commentTs < sinceTime) continue
+            if (shouldFilterByWindow && untilTime !== undefined && commentTs >= untilTime) continue
             results.push(comment)
             batch.push(comment)
           }
